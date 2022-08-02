@@ -620,7 +620,17 @@ K = 3
 J = 2        
 dimension = 2  
 vit = 0.4            
-PI = c(.5,.3,.2)               
+PI = c(.5,.3,.2)    
+
+
+# Paramètre de création des covariables. 
+
+lim <- c(-15, 15, -15, 15) # limits of map
+resol <- 0.1 # grid resolution
+rho <- 4; nu <- 1.5; sigma2 <- 10# Matern covariance parameters
+mean_function <- function(z){# mean function
+  -log(3 + sum(z^2))}
+
 
 
 # Creation de la suite des instants.
@@ -638,7 +648,7 @@ liste_cov = list()
 for (i in 1:J){
   liste_cov[[i]] = simSpatialCov(lim, nu, rho, sigma2, resol = resol,
                                  mean_function = mean_function,
-                                 raster_like = t)
+                                 raster_like = TRUE)
 }
 
 # Creation de la suite des etats caches.
