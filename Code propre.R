@@ -177,28 +177,57 @@ proba_emission = function(obs, C, theta, Delta, vit, dimension = 2){
 
 
 
-Generation_observation = function(beta, Q, C, vit, Delta, loc0 = c(0,0)){
+Generation_observation = function(theta, Q, liste_cov, vit, tps, loc0 = c(0,0)){
   K = dim(theta)[2]
-  nb_obs = length(Q)
-  Obs <- matrix(NA, nb_obs, 2)
+  nbr_obs = length(Q)
+  Obs <- matrix(NA, nbr_obs, 2)
   Obs[1,] = loc0
-  for (t in 1:nb_obs) {
-    
+  for (t in (1:(nbr_obs-1))) {
+    print(t)
     # On regarde l'état dans lequel on se trouve.
-    q = Q[t]
-    
+    etat = Q[t]
+    print(etat)
     # On simule le déplacement.
-    xy = simLangevinMM(beta[q], vit, c(Delta[t-1],Delta[t]), loc0, cov_list = C, keep_grad = FALSE)
-    print(xy)
+    xy = simLangevinMM(matrix_to_list(theta)[[etat]], vit, c(tps[t],tps[t+1]),
+                       loc0 = c(0,0), cov_list = liste_cov, keep_grad = FALSE)
     Obs[t,] = as.vector(as.numeric(xy[2,][,1:2])) # On ne prend que les coordonnées du déplacement.
     loc0 = as.vector(as.numeric(xy[2,][,1:2]))
   }
   return(Obs)}
 
+Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affichage = TRUE){
+  K = dim(theta)[2]
+  t = length(Q)
+  print(t)
+  Obs <- matrix(NA, t-1, 2)
+  Obs[1,] = loc0
+  for (t in 1:(t-1)) {
+    xy = simLangevinMM(beta[[Q[t]]], vit, c(tps[t],tps[t+1]), c(0,0), liste_cov, keep_grad = FALSE)
+    Obs[t,] = as.vector(as.numeric(xy[2,][,1:2])) # On ne prend que les coordonnées du déplacement.
+    loc0 = as.vector(as.numeric(xy[2,][,1:2]))
+  }
+  
+  # On s'occupe du format de retour. 
+  
+  # Les Z. 
+  
+  
+  # Les X. 
+  Observations = data.frame('X1' = Obs[,1], 'X2' = Obs[,2],
+                            'Z1' = c(increments(Obs[,1]), NA), 
+                            'Z2' = c(increments(Obs[,2]), NA))
+  # if (affichage){
+  #   Obs_affichage = Observations
+  #   Obs_affichage$'etats' = as.factor(Q[1:t-1])
+  #   
+  #   ggplot(Obs_affichage, aes(X1, X2)) +
+  #     geom_path()+
+  #     geom_point(aes(colour = etats)) 
+  # }
+  
+  return(Observations)}
 
-
-
-
+#Obs = Generation_observation(theta, Q, liste_cov = liste_cov, vit, tps)
 
 
 ################################################################################
@@ -624,7 +653,7 @@ PI = c(.5,.3,.2)
 
 
 # Paramètre de création des covariables. 
-
+seed = 1
 lim <- c(-15, 15, -15, 15) # limits of map
 resol <- 0.1 # grid resolution
 rho <- 4; nu <- 1.5; sigma2 <- 10# Matern covariance parameters
@@ -667,8 +696,8 @@ theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-Obs = Generation_observation(beta = matrix_to_list(theta), 
-                             Q, C = liste_cov, vit, tps)
+ObS = Generation_observation2.0(beta = matrix_to_list(theta), Q, C = liste_cov, vit, tps)
+
 
 # On calcule les valeurs du gradient des covariables en les observations et 
 # les met sous le bon format. 
