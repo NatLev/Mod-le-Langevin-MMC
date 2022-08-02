@@ -110,6 +110,17 @@ Nu = function(BETA, delta, vit) {
   return(L)
 }
 
+BetaToNu = function(Beta, Vit){
+  # Fonction qui prend en paramètre les betas et les gamma2 selon les etats et qui 
+  # doit renvoyer la matrice theta correspondante.
+  C = c()
+  K = length(Vit)
+  J = length(Beta[[1]])
+  for (i in 1:K){
+    C = c(C, Beta[[i]] * Vit[i])
+  }
+  return(matrix(C, ncol = K, nrow = J))
+}
 
 
 ################################################################################
@@ -135,37 +146,34 @@ Nu = function(BETA, delta, vit) {
 #         - Seules les dimensions 1 et 2 sont prises en compte ici.
 
 
-proba_emission = function(obs, C, theta, Delta, vit, dimension = 2){
-  T = dim(obs)[1]
+proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
+  nbr_obs = length(obs$Z1) 
   K = dim(theta)[2]
-  
+  print(nbr_obs)
   # Création de la matrice.
-  B = matrix(0, ncol = K, nrow = T)
+  B = matrix(0, ncol = K, nrow = nbr_obs)
   
   if (dimension == 2){
     # On implémente Z sous un format pratique pour la suite.
     Z = cbind(obs$Z1, obs$Z2)
     
     # Remplissage de la matrice.
-    for (t in 1:T){
-      C_tilde = matrix(c(C[t,],C[T+t,]),nrow=2,byrow=TRUE)
+    for (t in 1:nbr_obs){
+      C_tilde = matrix(c(C[t,],C[nbr_obs + t,]),nrow=2,byrow=TRUE)
       #mu = Delta[t] * C_tilde %*% theta
       mu =  C_tilde %*% theta / sqrt(Delta[t]) 
       #Sigma = vit**2 * Delta[t] * diag(2)
-      Sigma = vit**2 * diag(2)
-      for (k in 1:K){B[t,k] = dmvnorm(Z[t,], mu[,k], Sigma)}
+      #Sigma = Vits**2 * diag(2)
+      for (k in 1:K){B[t,k] = dmvnorm(Z[t,], mu[,k], Vits[k]**2 * diag(2))}
       # if (B[t,] = matrix(0,1,K)) {B[t,] = matrix(3.53e-300,1,K) }
     }
   }
   else {
     # Remplissage de la matrice.
-    for (t in 1:T){
+    for (t in 1:nbr_obs){
       for (k in 1:K){B[t,k] = dnorm(obs$Z[t],Delta[t]*(C[t,] %*% theta[,k]),vit)}
     }
   }
-  
-  
-  
   return(B)
 }
 
@@ -235,31 +243,31 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
 ################################################################################
 
 forward_2.0 = function( A, B, PI){
-  T = dim(B)[1]
+  nbr_obs = dim(B)[1]
   K = dim(B)[2]
   
-  alp = matrix(1, ncol = K, nrow = T)
+  alp = matrix(1, ncol = K, nrow = nbr_obs)
   somme = c()
   
   # On initialise.
   alp[1,] = PI * B[1,]
   
-  for (t in 1:(T-1)){
+  for (t in 1:(nbr_obs-1)){
     a = (alp[t,] %*% A) %*% diag(B[t+1,])
     somme = c(somme,sum(a))
     alp[t+1,] = a / sum(a)
   }
-  return(list(alp,somme,sum(alp[T,])))
+  return(list(alp,somme,sum(alp[nbr_obs,])))
 }
 backward_2.0 = function( A, B){
-  T = dim(B)[1]
+  nbr_obs = dim(B)[1]
   K = dim(B)[2]
   
   # Création de la matrice initialisée (dernière ligne égale à 1).
-  bet = matrix(1, ncol = K, nrow = T)
+  bet = matrix(1, ncol = K, nrow = nbr_obs)
   somme = c()
   
-  for (t in (T-1):1){
+  for (t in (nbr_obs-1):1){
     b = A %*% (B[t+1,] * bet[t+1,])
     somme = c(somme,sum(b))
     bet[t,] = b / sum(b)
@@ -280,6 +288,7 @@ backward_2.0 = function( A, B){
 Result_opt = function(obs, N_etats, C, Q, J){
   T = dim(Obs)[[1]]
   Coef = c()
+  Vitesses = c()
   
   # On gère les différentes dimensions.
   if (dimension == 2){Z = data.frame(obs$Z1,obs$Z2)}
@@ -314,6 +323,7 @@ Result_opt = function(obs, N_etats, C, Q, J){
     }
     C_nv = matrix(c(C_nv,C_nv), nrow = 2*length(l1),byrow = TRUE)
     model = lm(c(l1,l2) ~ C_nv)
+    
     coef = coef(model)[1:J+1]
     Coef = c(Coef,coef)
   }
@@ -326,78 +336,23 @@ Result_opt = function(obs, N_etats, C, Q, J){
   
 }
 
-initialisation = function(obs, N_etats, C, J, methode = 'kmeans'){
-  T = dim(Obs)[[1]]
-  Coef = c()
-  
-  if (methode == 'kmeans'){
-    # On gère les différentes dimensions.
-    if (dimension == 2){Z = data.frame(obs$Z1,obs$Z2)}
-    else {Z = obs$Z}
-    print(Z)
-    # On effectue le kmeans sur les observations.
-    km = kmeans(Z, N_etats)
-    
-    # On extrait la suite prédite des états. 
-    Q_km = km$cluster
-    
-    # On découpe Z selon les différents états. Je vais simplement stocker les 
-    # indices et non pas directement les valeurs des Z_i. 
-    
-    # Répartition.
-    Z_rep = list()
-    model = list()
-    for (k in 1:N_etats){
-      Z_rep[k] = c(0)
-    }
-    
-    # On ne parcourt qu'une seule fois les données et on les répartit dans les 
-    # différentes listes selon l'état prédit pour le déplacement. 
-    for (i in 1:T){
-      Z_rep[[Q_km[i]]] = c(Z_rep[[Q_km[i]]],i)   # On ajoute la coordonnée dans la bonne liste.
-    }
-    
-    # On construit les différentes sous-parties de Z (autant que d'états).  
-    for (i in 1:N_etats){
-      l1 = c()
-      l2 = c()
-      C_nv = c()
-      lgr = length(Z_rep[[i]])
-      for (t in Z_rep[[i]][2:lgr]){
-        l1 = c(l1,Z[t,1])
-        l2 = c(l2,Z[t,2])
-        C_nv = c(C_nv,C[t,])
-      }
-      C_nv = matrix(c(C_nv,C_nv), nrow = 2*length(l1),byrow = TRUE)
-      model = lm(c(l1,l2) ~ C_nv)
-      coef = coef(model)[1:J+1]
-      Coef = c(Coef,coef)
-    }
-  }
-  
-  # On s'occupe maintenant d'estimer la matrice de transition. 
-  #print(matrix(Q_km,1,T))
-  mcFitMLE <- markovchainFit(data = Q_km)
-  A = matrix(mcFitMLE$estimate[1:N_etats],N_etats,N_etats)
-  
-  return(list(A,matrix(Coef, ncol = N_etats)))
-}
-
-initialisation_modif = function(obs, N_etats, C, J, methode = 'kmeans'){
+initialisation = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2){
   nbr_obs = dim(Obs)[[1]]
+  print(nbr_obs)
   Coef = c()
+  Vitesses = c()
   
   if (methode == 'kmeans'){
     # On gère les différentes dimensions.
-    if (dimension == 2){Z = data.frame(obs$Z1[1:(nbr_obs-2)],obs$Z2[1:(nbr_obs-2)])}
+    if (dimension == 2){Z = data.frame('Z1' = obs$Z1[1:(nbr_obs-1)],
+                                       'Z2' = obs$Z2[1:(nbr_obs-1)])}
     else {Z = obs$Z}
-    print(Z)
     # On effectue le kmeans sur les observations.
     km = kmeans(Z, N_etats)
     
     # On extrait la suite prédite des états. 
     Q_km = km$cluster
-    
+    print(paste(length(Q_km),'lgr Q_km'))
     # On découpe Z selon les différents états. Je vais simplement stocker les 
     # indices et non pas directement les valeurs des Z_i. 
     
@@ -410,7 +365,7 @@ initialisation_modif = function(obs, N_etats, C, J, methode = 'kmeans'){
     
     # On ne parcourt qu'une seule fois les données et on les répartit dans les 
     # différentes listes selon l'état prédit pour le déplacement. 
-    for (i in 1:nbr_obs){
+    for (i in 1:(nbr_obs-1)){
       Z_rep[[Q_km[i]]] = c(Z_rep[[Q_km[i]]],i)   # On ajoute la coordonnée dans la bonne liste.
     }
     
@@ -427,8 +382,10 @@ initialisation_modif = function(obs, N_etats, C, J, methode = 'kmeans'){
       }
       C_nv = matrix(c(C_nv,C_nv), nrow = 2*length(l1),byrow = TRUE)
       model = lm(c(l1,l2) ~ C_nv)
+      vit = summary(model)$sigma
       coef = coef(model)[1:J+1]
-      Coef = c(Coef,coef)
+      Coef[[i]] = coef
+      Vitesses = c(Vitesses, vit)
     }
   }
   
@@ -437,14 +394,8 @@ initialisation_modif = function(obs, N_etats, C, J, methode = 'kmeans'){
   mcFitMLE <- markovchainFit(data = Q_km)
   A = matrix(mcFitMLE$estimate[1:N_etats],N_etats,N_etats)
   
-  return(list(A,matrix(Coef, ncol = N_etats)))
+  return(list('A' = A, 'Beta' = Coef, 'Vitesses' = Vitesses))
 }
-
-
-#Init = initialisation(Obs, K, C, J)
-
-
-
 
 
 ################################################################################
@@ -544,20 +495,20 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     ### EXPECTATION.
     
     # GAMMA.
-    F = forward_2.0( A, B, PI)
+    F = forward_2.0( A, B[1:(nbr_obs-3),], PI)
     alp = F[[1]]
     S_alp = F[[2]]
     proba_obs = F[[3]]
     
     #print(F)
     
-    Back = backward_2.0( A, B)
+    Back = backward_2.0( A, B[1:(nbr_obs-3),])
     bet = Back[[1]]
     S_bet = Back[[2]]
     gam = alp * bet
     
     for (t in 1:T){gam[t,] = gam[t,]/(sum(gam[t,]))}
-    
+    print(gam)
     #print(gam)
     
     # On gère la potentiel présence de NA dans la matrice gam.
@@ -628,16 +579,6 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
 
 
 
-
-
-
-
-
-
-
-
-
-
 ################################################################################
 #                                                                              #
 #                         Simulation des observations                          #
@@ -696,7 +637,7 @@ theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-ObS = Generation_observation2.0(beta = matrix_to_list(theta), Q, C = liste_cov, vit, tps)
+Obs = Generation_observation2.0(beta = matrix_to_list(theta), Q, C = liste_cov, vit, tps)
 
 
 # On calcule les valeurs du gradient des covariables en les observations et 
@@ -718,14 +659,12 @@ for (t in 1:(t-1)){
 # On initialise les parametres. 
 
 Init = initialisation_modif(Obs, K, C, J)
-A_init = Init[[1]]; theta_init = Init[[2]]
+A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 
-vit_initiale = 0.2  
-theta_initial = Nu(BETA(K,J), 1, vit_initiale)   
-
-Lambda = list('A' = A,
-              'B' = proba_emission(Obs, C, theta, Delta_erreurs,  vit_initiale, 
+theta_initial = BetaToNu(Beta_init, Vits_init)
+Lambda = list('A' = A_init,
+              'B' = proba_emission(Obs, C, theta, tps,  Vits_init, 
                                    dimension),
               'PI' = PI)
 
@@ -735,4 +674,6 @@ print(list(E[[1]],E[[2]],E[[3]]))
 theta
 
 
-
+forward_2.0(Lambda$A, Lambda$B[1:(nbr_obs-3),], Lambda$PI)
+backward_2.0(Lambda$A, Lambda$B)
+         
