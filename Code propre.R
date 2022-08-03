@@ -149,15 +149,15 @@ BetaToNu = function(Beta, Vit){
 
 proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
   
-  nbr_obs = length(obs$Z1) -1 # On enleve 1 pour ne pas prendre le NA.
+  nbr_obs = length(obs$Z1) - 1  # On enleve 1 pour ne pas prendre le NA.
   K = dim(theta)[2]
-  print(nbr_obs)
+  
   # Création de la matrice.
   B = matrix(0, ncol = K, nrow = nbr_obs)
   
   if (dimension == 2){
     # On implémente Z sous un format pratique pour la suite.
-    Z = cbind(obs$Z1, obs$Z2)
+    Z = cbind(obs$Z1[1:nbr_obs], obs$Z2[1:nbr_obs])
     
     # Remplissage de la matrice.
     for (t in 1:nbr_obs){
@@ -172,12 +172,12 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
       for (k in 1:K){B[t,k] = dnorm(obs$Z[t],Delta[t]*(C[t,] %*% theta[,k]),vit)}
     }
   }
-  return(B)
+  return(list(B,Z))
 }
 p = proba_emission(Obs, C, theta_initial, incr,  Vits = c(1,0.2), 
                dimension)
-
-Vits_init[1]**2 * diag(2)
+ojr = p[[1]]
+kek = p[[2]]
 ################################################################################
 ###                      Génération des observations                         ###                               
 ################################################################################
@@ -328,6 +328,7 @@ Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affi
 
 forward_2.0 = function( A, B, PI){
   nbr_obs = dim(B)[1]
+  print(nbr_obs)
   K = dim(B)[2]
   alp = matrix(1, ncol = K, nrow = nbr_obs)
   somme = c()
@@ -559,7 +560,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   
   # Extraction des paramètres du modèle.
   A = Lambda$A
-  B = Lambda$B[1:nbr_obs,]
+  B = Lambda$B[1:(nbr_obs-1),]
   PI = Lambda$PI
   
   # On gère l'option moyenne si besoin.
@@ -567,12 +568,12 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   somme_A = matrix(0,K,K)
   
   
-  # Construction de la matrice C avec la division temporelle.
-  C_temp = C
-  for (i in 1:nbr_obs){
-    C_temp[i] = C_temp[i]/sqrt(delta[i])
-    C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
-  }
+  # # Construction de la matrice C avec la division temporelle.
+  # C_temp = C
+  # for (i in 1:nbr_obs){
+  #   C_temp[i] = C_temp[i]/sqrt(delta[i])
+  #   C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
+  # }
   
   
   while (compteur < G){
@@ -585,14 +586,14 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     S_alp = forw[[2]]
     proba_obs = forw[[3]]
     
-    #print(F)
-    
     Back = backward_2.0( A, B)
     bet = Back[[1]]
     S_bet = Back[[2]]
+    
+    dim(B)
     gam = alp * bet
-    for (t in 1:nbr_obs){gam[t,] = gam[t,]/(sum(gam[t,]))}
-    print(gam)
+    for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
+    #print(gam)
     
     # On gère la potentiel présence de NA dans la matrice gam.
     if (any(is.na(gam))){
@@ -604,8 +605,8 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     
     ## CALCUL DE A.
     
-    Xi = array(1,dim = c( K, K, nbr_obs),)
-    for (t in 1:(nbr_obs-1)){
+    Xi = array(1,dim = c( K, K, nbr_obs-1),)
+    for (t in 1:(nbr_obs-2)){
       Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
     }
     
@@ -626,14 +627,15 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     A = format_mat(somme_Xi * somme_gam)
     somme_A = somme_A + A
     
-    
+    browser()
     # THETA.
     theta_nv = matrix(1,J,K)
     Vits = c()
     for (k in 1:K){
       # On gère les deux cas différents selon la dimension.
       if (dimension == 2){
-        model = lm(c(Z[1:nbr_obs,1],Z[1:nbr_obs,2]) ~ C_temp, weights= c(gam[,k],gam[,k]))
+        model = lm(c(Z[1:(nbr_obs-1),1],Z[1:(nbr_obs-1),2]) ~ C, weights= c(gam[,k],gam[,k]))
+        
       }
       else {
         model = lm(Z ~ C, weights=gam[,k])
@@ -643,12 +645,11 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
       Vits = c(Vits, summary(model)$sigma)
       theta_nv[,k] = coef(model)[2:(J+1)]
     }
-    print(Vits)
     # On gère la potentielle moyenne à calculer.
     somme_theta = somme_theta + theta_nv
     
     # On met à jour la matrice des probabilités des émissions.
-    B = proba_emission(obs, C_temp, theta_nv, delta, Vits)
+    B = proba_emission(obs, C, theta_nv, delta, Vits)
     # On met à jour le compteur.
     compteur = compteur + 1
   }
@@ -710,7 +711,7 @@ for (i in 1:J){
 #            ncol = K,
 #            nrow = K,
 #            byrow = TRUE)
-A = matrix(c(.85,.15,.05,.95),
+A = matrix(c(.85,.15,.09,.91),
            ncol = K,
            nrow = K,
            byrow = TRUE)
@@ -720,11 +721,14 @@ Q = CM_generateur( A, nbr_obs)
 # Le parametre de lien. 
 
 theta = Nu(BETA(K,J), 1, vit)
+
+
 theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-Obs = Generation_observation3.0(beta = matrix_to_list(theta), Q, C = liste_cov, Vits = c(.4,.42), tps)
+Obs = Generation_observation3.0(beta = matrix_to_list(theta), Q, C = liste_cov, 
+                                Vits = c(.4,.42), tps)
 
 
 # On calcule les valeurs du gradient des covariables en les observations et 
@@ -741,6 +745,11 @@ for (t in 1:(nbr_obs-1)){
   }
 }
 
+# Construction de la matrice C avec la division temporelle.
+for (i in 1:(nbr_obs-1)){
+  C[i] = C[i]/sqrt(incr[i])
+  C[nbr_obs - 1 + i] = C[nbr_obs - 1 +i]/sqrt(incr[i])
+}
 
 
 # On initialise les parametres. 
@@ -751,7 +760,7 @@ A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
-              'B' = proba_emission(Obs, C, theta_initial, incr,  Vits_init, 
+              'B' = proba_emission(Obs, C, theta, incr,  Vits_init, 
                                    dimension),
               'PI' = PI)
 Vits_init
@@ -773,11 +782,11 @@ print(alp)
 Back = backward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),])
 bet = Back[[1]]
 S_bet = Back[[2]]
-print(bet)
+print(Back)
 gam = alp * bet
-
-for (t in 1:T){gam[t,] = gam[t,]/(sum(gam[t,]))}
 print(gam)
-
-
+for (t in 1:nbr_obs){gam[t,] = gam[t,]/(sum(gam[t,]))}
+print(gam)
+dim(gam)
+dim(alp)
       
