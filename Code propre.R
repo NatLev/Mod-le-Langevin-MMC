@@ -148,8 +148,10 @@ BetaToNu = function(Beta, Vit){
 
 
 proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
-  nbr_obs = length(obs$Z1) -1 
+  
+  nbr_obs = length(obs$Z1) -1 # On enleve 1 pour ne pas prendre le NA.
   K = dim(theta)[2]
+  print(nbr_obs)
   # Création de la matrice.
   B = matrix(0, ncol = K, nrow = nbr_obs)
   
@@ -159,12 +161,9 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
     
     # Remplissage de la matrice.
     for (t in 1:nbr_obs){
-      C_tilde = matrix(c(C[t,],C[nbr_obs + t,]),nrow=2,byrow=TRUE)
-      #mu = Delta[t] * C_tilde %*% theta
+      C_tilde = matrix( c(C[t,],C[nbr_obs + t,]), nrow=2, byrow=TRUE)
       mu =  C_tilde %*% theta / sqrt(Delta[t]) 
-      #Sigma = Vits**2 * diag(2)
-      for (k in 1:K){B[t,k] = dmvnorm(Z[t,], mu[,k], Vits[k]**2 * diag(2))}
-      # if (B[t,] = matrix(0,1,K)) {B[t,] = matrix(3.53e-300,1,K) }
+      for (k in 1:K){B[t,k] = dmvnorm( Z[t,], mu[,k], Vits[k]**2 * diag(2))}
     }
   }
   else {
@@ -175,14 +174,69 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
   }
   return(B)
 }
+p = proba_emission(Obs, C, theta_initial, incr,  Vits = c(1,0.2), 
+               dimension)
 
-
-
+Vits_init[1]**2 * diag(2)
 ################################################################################
 ###                      Génération des observations                         ###                               
 ################################################################################
 
-
+Obs_generateur = function(Q, theta, C, vit, delta, dimension = 2){
+  nbr_obs = length(Q) - 2 
+  
+  if (dimension == 2){
+    # On considère que l'animal part de l'origine.
+    X1 = c(0)
+    X2 = c(0)
+    Z1 = c(0)
+    Z2 = c(0)
+    
+    for (i in 2:nbr_obs) {
+      # MU.
+      C_tilde = matrix(c(C[i,],C[nbr_obs+i,]),nrow=2,byrow=TRUE) # Matrice C modifiée.
+      mu = C_tilde%*%theta[,Q[i]]
+      
+      # Sigma.
+      #Sigma = (vit**2) * delta[i-1]* diag(2) 
+      Sigma = (vit**2) * diag(2) 
+      
+      # Calcul du déplacement.
+      e = mvrnorm(1,  mu/sqrt(delta[i-1]), Sigma)
+      #e = mvrnorm(1,  mu * delta[i-1], Sigma)
+      if(abs(e[1]) > 4 ){ browser()}
+      # Stockage des données.
+      X1 = c(X1, X1[i-1] + e[1])
+      X2 = c(X2, X2[i-1] + e[2])
+      Z1 = c(Z1, e[1])
+      Z2 = c(Z2, e[2])
+    }
+    return(data.frame('X1' = X1, 'X2' = X2, 'Z1' = Z1, 'Z2' = Z2))
+  }
+  
+  else {
+    # On considère que l'animal part de l'origine.
+    X = c(0) # Départ déterministe en l'origine.
+    Z = c(0)
+    
+    # Sigma. 
+    Sigma = delta * vit**2
+    
+    for (i in 2:nbr_obs) {
+      # Mu.
+      mu = C[i,]%*%theta[,Q[i]]
+      
+      # Calcul du déplacement.
+      e = rnorm(1, delta[i-1]*mu, Sigma[i-1])
+      
+      # Stockage des données.
+      X = c(X, X[i-1] + e)
+      Z = c(Z, e)
+    }
+    return(data.frame('X' = X, 'Z' = Z))
+  }
+}
+OBS = Obs_generateur(Q, theta, C, vit = 0.4, tps)
 
 Generation_observation = function(theta, Q, liste_cov, vit, tps, loc0 = c(0,0)){
   K = dim(theta)[2]
@@ -210,6 +264,37 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
   Obs[1,] = loc0
   for (t in 1:(t-1)) {
     xy = simLangevinMM(beta[[Q[t]]], vit, c(tps[t],tps[t+1]), c(0,0), liste_cov, keep_grad = FALSE)
+    Obs[t,] = as.vector(as.numeric(xy[2,][,1:2])) # On ne prend que les coordonnées du déplacement.
+    loc0 = as.vector(as.numeric(xy[2,][,1:2]))
+  }
+  
+  # On s'occupe du format de retour. 
+  
+  # Les Z. 
+  
+  
+  # Les X. 
+  Observations = data.frame('X1' = Obs[,1], 'X2' = Obs[,2],
+                            'Z1' = c(increments(Obs[,1]), NA), 
+                            'Z2' = c(increments(Obs[,2]), NA))
+  # if (affichage){
+  #   Obs_affichage = Observations
+  #   Obs_affichage$'etats' = as.factor(Q[1:t-1])
+  #   
+  #   ggplot(Obs_affichage, aes(X1, X2)) +
+  #     geom_path()+
+  #     geom_point(aes(colour = etats)) 
+  # }
+  
+  return(Observations)}
+
+Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affichage = TRUE){
+  K = dim(theta)[2]
+  t = length(Q) 
+  Obs <- matrix(NA, t, 2)
+  Obs[1,] = loc0
+  for (t in 2:(t)) {
+    xy = simLangevinMM(beta[[Q[t]]], Vits[Q[t]], c(tps[t-1],tps[t]), c(0,0), liste_cov, keep_grad = FALSE)
     Obs[t,] = as.vector(as.numeric(xy[2,][,1:2])) # On ne prend que les coordonnées du déplacement.
     loc0 = as.vector(as.numeric(xy[2,][,1:2]))
   }
@@ -639,17 +724,17 @@ theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-Obs = Generation_observation2.0(beta = matrix_to_list(theta), Q, C = liste_cov, vit, tps)
+Obs = Generation_observation3.0(beta = matrix_to_list(theta), Q, C = liste_cov, Vits = c(.4,.42), tps)
 
 
 # On calcule les valeurs du gradient des covariables en les observations et 
 # les met sous le bon format. 
 
-MatObs = matrix(c(Obs$X1[1:(nbr_obs-2)],Obs$X2[1:(nbr_obs-2)]), (nbr_obs-2), 2, 
+MatObs = matrix(c(Obs$X1[1:(nbr_obs-1)],Obs$X2[1:(nbr_obs-1)]), (nbr_obs-1), 2, 
                 byrow = FALSE)
 CovGradLocs = covGradAtLocs(MatObs, liste_cov)
-C = matrix(NA, 2*(nbr_obs-2), J)
-for (t in 1:(nbr_obs-2)){
+C = matrix(NA, 2*(nbr_obs-1), J)
+for (t in 1:(nbr_obs-1)){
   for (j in 1:J){
     C[t,j] = CovGradLocs[t, j, 1]
     C[t - 2 + nbr_obs,j] = CovGradLocs[t, j, 2]
@@ -665,31 +750,30 @@ A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 
 theta_initial = BetaToNu(Beta_init, Vits_init)
-Lambda = list('A' = A_init,
-              'B' = proba_emission(Obs, C, theta_initial, tps,  Vits_init, 
+Lambda = list('A' = A,
+              'B' = proba_emission(Obs, C, theta_initial, incr,  Vits_init, 
                                    dimension),
               'PI' = PI)
+Vits_init
 
-
-E = EM_Langevin_modif_A( Obs, Lambda, incr, vit, C, G = 20, moyenne = FALSE)
+E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 2, moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
 
 
+he = Lambda$B
+FOR = forward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),], PI)
 
-F = forward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),], PI)
-
-alp = F[[1]]
+alp = FOR[[1]]
+S_alp = FOR[[2]]
+proba_obs = FOR[[3]]
 print(alp)
-S_alp = F[[2]]
-proba_obs = F[[3]]
-
 #print(F)
 
 Back = backward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),])
 bet = Back[[1]]
 S_bet = Back[[2]]
-print(S_bet)
+print(bet)
 gam = alp * bet
 
 for (t in 1:T){gam[t,] = gam[t,]/(sum(gam[t,]))}
