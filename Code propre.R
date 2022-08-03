@@ -119,6 +119,7 @@ BetaToNu = function(Beta, Vit){
   for (i in 1:K){
     C = c(C, Beta[[i]] * Vit[i])
   }
+  print(C)
   return(matrix(C, ncol = K, nrow = J))
 }
 
@@ -147,9 +148,8 @@ BetaToNu = function(Beta, Vit){
 
 
 proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
-  nbr_obs = length(obs$Z1) 
+  nbr_obs = length(obs$Z1) -1 
   K = dim(theta)[2]
-  print(nbr_obs)
   # Création de la matrice.
   B = matrix(0, ncol = K, nrow = nbr_obs)
   
@@ -162,7 +162,6 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
       C_tilde = matrix(c(C[t,],C[nbr_obs + t,]),nrow=2,byrow=TRUE)
       #mu = Delta[t] * C_tilde %*% theta
       mu =  C_tilde %*% theta / sqrt(Delta[t]) 
-      #Sigma = vit**2 * Delta[t] * diag(2)
       #Sigma = Vits**2 * diag(2)
       for (k in 1:K){B[t,k] = dmvnorm(Z[t,], mu[,k], Vits[k]**2 * diag(2))}
       # if (B[t,] = matrix(0,1,K)) {B[t,] = matrix(3.53e-300,1,K) }
@@ -245,7 +244,6 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
 forward_2.0 = function( A, B, PI){
   nbr_obs = dim(B)[1]
   K = dim(B)[2]
-  
   alp = matrix(1, ncol = K, nrow = nbr_obs)
   somme = c()
   
@@ -472,9 +470,11 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   }
   else {Z = obs$Z}
   
+  nbr_obs = dim(Z)[1] - 1
+  
   # Extraction des paramètres du modèle.
   A = Lambda$A
-  B = Lambda$B
+  B = Lambda$B[1:nbr_obs,]
   PI = Lambda$PI
   
   # On gère l'option moyenne si besoin.
@@ -484,9 +484,9 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   
   # Construction de la matrice C avec la division temporelle.
   C_temp = C
-  for (i in 1:T){
+  for (i in 1:nbr_obs){
     C_temp[i] = C_temp[i]/sqrt(delta[i])
-    C_temp[T + i] = C_temp[T+i]/sqrt(delta[i])
+    C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
   }
   
   
@@ -495,21 +495,19 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     ### EXPECTATION.
     
     # GAMMA.
-    F = forward_2.0( A, B[1:(nbr_obs-3),], PI)
-    alp = F[[1]]
-    S_alp = F[[2]]
-    proba_obs = F[[3]]
+    forw = forward_2.0( A, B, PI)
+    alp = forw[[1]]
+    S_alp = forw[[2]]
+    proba_obs = forw[[3]]
     
     #print(F)
     
-    Back = backward_2.0( A, B[1:(nbr_obs-3),])
+    Back = backward_2.0( A, B)
     bet = Back[[1]]
     S_bet = Back[[2]]
     gam = alp * bet
-    
-    for (t in 1:T){gam[t,] = gam[t,]/(sum(gam[t,]))}
+    for (t in 1:nbr_obs){gam[t,] = gam[t,]/(sum(gam[t,]))}
     print(gam)
-    #print(gam)
     
     # On gère la potentiel présence de NA dans la matrice gam.
     if (any(is.na(gam))){
@@ -521,20 +519,19 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     
     ## CALCUL DE A.
     
-    Xi = array(1,dim = c(K,K,T),)
-    for (t in 1:(T-1)){
-      #print(diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,]))
+    Xi = array(1,dim = c( K, K, nbr_obs),)
+    for (t in 1:(nbr_obs-1)){
       Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
     }
     
     # Je fais la somme des Xi pour t allant de 1 à T-1.
     somme_Xi = matrix(0,K,K)
-    for (t in 1:(T-1)){somme_Xi = somme_Xi + Xi[,,t]}
+    for (t in 1:(nbr_obs-1)){somme_Xi = somme_Xi + Xi[,,t]}
     
     # Je fais la somme des gamma pour t allant de 1 à T-1.
     somme_gam = matrix(0, nrow = K, ncol = K, byrow = TRUE)
     for (k in 1:K){
-      sg = sum(gam[1:T-1,k])
+      sg = sum(gam[1:nbr_obs-1,k])
       #print(matrix(sg, nrow= 1, ncol = K, byrow = TRUE))
       somme_gam[k,] = matrix(sg, nrow= 1, ncol = K, byrow = TRUE)
     }
@@ -547,35 +544,36 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     
     # THETA.
     theta_nv = matrix(1,J,K)
+    Vits = c()
     for (k in 1:K){
-      
       # On gère les deux cas différents selon la dimension.
       if (dimension == 2){
-        model = lm(c(Z[,1],Z[,2]) ~ C_temp, weights= c(gam[,k],gam[,k]))
+        model = lm(c(Z[1:nbr_obs,1],Z[1:nbr_obs,2]) ~ C_temp, weights= c(gam[,k],gam[,k]))
       }
       else {
         model = lm(Z ~ C, weights=gam[,k])
       }
       
       # On récupère les coefficients.
-      vit = summary(model)$sigma
+      Vits = c(Vits, summary(model)$sigma)
       theta_nv[,k] = coef(model)[2:(J+1)]
     }
-    #print(theta_nv)
+    print(Vits)
     # On gère la potentielle moyenne à calculer.
     somme_theta = somme_theta + theta_nv
     
     # On met à jour la matrice des probabilités des émissions.
-    B = proba_emission(obs, C, theta_nv, delta, vit, dimension)
+    B = proba_emission(obs, C_temp, theta_nv, delta, Vits)
     # On met à jour le compteur.
     compteur = compteur + 1
   }
   
   # On gère la moyenne si nécessaire.
   if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
-  else {return(list(A,theta_nv,sqrt(vit)))}
+  else {return(list(A,theta_nv,sqrt(Vits)))}
 }
 
+E = EM_Langevin_modif_A( Obs, Lambda, incr, vit, C, G = 20, moyenne = FALSE)
 
 
 
@@ -586,15 +584,15 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
 ################################################################################       
 
 nbr_obs = 1000      
-K = 3       
+K = 2       
 J = 2        
 dimension = 2  
 vit = 0.4            
-PI = c(.5,.3,.2)    
-
+#PI = c(.5,.3,.2)    
+PI = c(.7,.3)
 
 # Paramètre de création des covariables. 
-seed = 1
+#seed = 1
 lim <- c(-15, 15, -15, 15) # limits of map
 resol <- 0.1 # grid resolution
 rho <- 4; nu <- 1.5; sigma2 <- 10# Matern covariance parameters
@@ -623,7 +621,11 @@ for (i in 1:J){
 
 # Creation de la suite des etats caches.
 
-A = matrix(c(.85,.05,.1,.03,.91,.06,.03,.07,.9),
+# A = matrix(c(.85,.05,.1,.03,.91,.06,.03,.07,.9),
+#            ncol = K,
+#            nrow = K,
+#            byrow = TRUE)
+A = matrix(c(.85,.15,.05,.95),
            ncol = K,
            nrow = K,
            byrow = TRUE)
@@ -643,14 +645,14 @@ Obs = Generation_observation2.0(beta = matrix_to_list(theta), Q, C = liste_cov, 
 # On calcule les valeurs du gradient des covariables en les observations et 
 # les met sous le bon format. 
 
-MatObs = matrix(c(Obs$X1,Obs$X2),nbr_obs -1 ,2,byrow = FALSE)
+MatObs = matrix(c(Obs$X1[1:(nbr_obs-2)],Obs$X2[1:(nbr_obs-2)]), (nbr_obs-2), 2, 
+                byrow = FALSE)
 CovGradLocs = covGradAtLocs(MatObs, liste_cov)
-C = matrix(NA, 2*(nbr_obs-1), J)
-for (t in 1:(t-1)){
+C = matrix(NA, 2*(nbr_obs-2), J)
+for (t in 1:(nbr_obs-2)){
   for (j in 1:J){
-    print(t)
     C[t,j] = CovGradLocs[t, j, 1]
-    C[t - 1 + nbr_obs,j] = CovGradLocs[t, j, 2]
+    C[t - 2 + nbr_obs,j] = CovGradLocs[t, j, 2]
   }
 }
 
@@ -658,13 +660,13 @@ for (t in 1:(t-1)){
 
 # On initialise les parametres. 
 
-Init = initialisation_modif(Obs, K, C, J)
+Init = initialisation(Obs, K, C, J)
 A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A_init,
-              'B' = proba_emission(Obs, C, theta, tps,  Vits_init, 
+              'B' = proba_emission(Obs, C, theta_initial, tps,  Vits_init, 
                                    dimension),
               'PI' = PI)
 
@@ -674,6 +676,24 @@ print(list(E[[1]],E[[2]],E[[3]]))
 theta
 
 
-forward_2.0(Lambda$A, Lambda$B[1:(nbr_obs-3),], Lambda$PI)
-backward_2.0(Lambda$A, Lambda$B)
-         
+
+F = forward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),], PI)
+
+alp = F[[1]]
+print(alp)
+S_alp = F[[2]]
+proba_obs = F[[3]]
+
+#print(F)
+
+Back = backward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),])
+bet = Back[[1]]
+S_bet = Back[[2]]
+print(S_bet)
+gam = alp * bet
+
+for (t in 1:T){gam[t,] = gam[t,]/(sum(gam[t,]))}
+print(gam)
+
+
+      
