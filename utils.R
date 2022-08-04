@@ -15,11 +15,7 @@ format_mat = function(A){
 # Transforme une matrice en une liste des colonnes. 
 matrix_to_list = function(mat){
   N = ncol(mat)
-  l = numeric(length = N)
-  for (i in 1:N){
-    l[[i]] = c(mat[,i])
-  }
-  return(l)
+  return( lapply(1:N, function(d){mat[,d]}))
 }
 
 # Fonction qui retourner une liste. Elle peut être utile après l'utilisation 

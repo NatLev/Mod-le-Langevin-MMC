@@ -250,8 +250,8 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
   
   # Les X. 
   Observations = data.frame('X1' = Obs[,1], 'X2' = Obs[,2],
-                            'Z1' = c(increments(Obs[,1]), NA), 
-                            'Z2' = c(increments(Obs[,2]), NA))
+                            'Z1' = c(diff(Obs[,1]), NA), 
+                            'Z2' = c(diff(Obs[,2]), NA))
   # if (affichage){
   #   Obs_affichage = Observations
   #   Obs_affichage$'etats' = as.factor(Q[1:t-1])
@@ -265,10 +265,10 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
 
 Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affichage = TRUE){
   K = dim(theta)[2]
-  t = length(Q) 
-  Obs <- matrix(NA, t, 2)
+  nbr_obs = length(Q) 
+  Obs <- matrix(NA, nbr_obs, 2)
   Obs[1,] = loc0
-  for (t in 2:(t)) {
+  for (t in 2:nbr_obs) {
     xy = simLangevinMM(beta[[Q[t]]], Vits[Q[t]], c(tps[t-1],tps[t]), c(0,0), liste_cov, keep_grad = FALSE)
     Obs[t,] = as.vector(as.numeric(xy[2,][,1:2])) # On ne prend que les coordonnées du déplacement.
     loc0 = as.vector(as.numeric(xy[2,][,1:2]))
@@ -281,8 +281,8 @@ Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affi
   
   # Les X. 
   Observations = data.frame('X1' = Obs[,1], 'X2' = Obs[,2],
-                            'Z1' = c(increments(Obs[,1]), NA), 
-                            'Z2' = c(increments(Obs[,2]), NA))
+                            'Z1' = c(diff(Obs[,1]), NA), 
+                            'Z2' = c(diff(Obs[,2]), NA))
   # if (affichage){
   #   Obs_affichage = Observations
   #   Obs_affichage$'etats' = as.factor(Q[1:t-1])

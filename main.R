@@ -2,6 +2,7 @@ source('utils.R')
 source('simu.R')
 source('estim.R')
 
+RFoptions(install="no")
 
 nbr_obs = 1000      
 K = 2       
@@ -12,7 +13,7 @@ vit = 0.4
 PI = c(.7,.3)
 
 # Paramètre de création des covariables. 
-seed = 1
+set.seed(1)
 lim <- c(-15, 15, -15, 15) # limits of map
 resol <- 0.1 # grid resolution
 rho <- 4; nu <- 1.5; sigma2 <- 10# Matern covariance parameters
