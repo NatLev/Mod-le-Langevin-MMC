@@ -154,7 +154,6 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
   
   # Création de la matrice.
   B = matrix(0, ncol = K, nrow = nbr_obs)
-  
   if (dimension == 2){
     # On implémente Z sous un format pratique pour la suite.
     Z = cbind(obs$Z1[1:nbr_obs], obs$Z2[1:nbr_obs])
@@ -172,12 +171,11 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
       for (k in 1:K){B[t,k] = dnorm(obs$Z[t],Delta[t]*(C[t,] %*% theta[,k]),vit)}
     }
   }
-  return(list(B,Z))
+  return(B)
 }
 p = proba_emission(Obs, C, theta_initial, incr,  Vits = c(1,0.2), 
                dimension)
-ojr = p[[1]]
-kek = p[[2]]
+
 ################################################################################
 ###                      Génération des observations                         ###                               
 ################################################################################
@@ -328,7 +326,6 @@ Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affi
 
 forward_2.0 = function( A, B, PI){
   nbr_obs = dim(B)[1]
-  print(nbr_obs)
   K = dim(B)[2]
   alp = matrix(1, ncol = K, nrow = nbr_obs)
   somme = c()
@@ -560,7 +557,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   
   # Extraction des paramètres du modèle.
   A = Lambda$A
-  B = Lambda$B[1:(nbr_obs-1),]
+  B = Lambda$B[1:nbr_obs,]
   PI = Lambda$PI
   
   # On gère l'option moyenne si besoin.
@@ -577,7 +574,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   
   
   while (compteur < G){
-    print(compteur)
+    print(paste('Tour',compteur))
     ### EXPECTATION.
     
     # GAMMA.
@@ -590,10 +587,9 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     bet = Back[[1]]
     S_bet = Back[[2]]
     
-    dim(B)
     gam = alp * bet
     for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
-    #print(gam)
+    print(gam)
     
     # On gère la potentiel présence de NA dans la matrice gam.
     if (any(is.na(gam))){
@@ -627,14 +623,15 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     A = format_mat(somme_Xi * somme_gam)
     somme_A = somme_A + A
     
-    browser()
+    
     # THETA.
     theta_nv = matrix(1,J,K)
     Vits = c()
+    print(length(c(gam[,k],gam[,k])))
     for (k in 1:K){
       # On gère les deux cas différents selon la dimension.
       if (dimension == 2){
-        model = lm(c(Z[1:(nbr_obs-1),1],Z[1:(nbr_obs-1),2]) ~ C, weights= c(gam[,k],gam[,k]))
+        model = lm(c(Z[1:nbr_obs,1],Z[1:nbr_obs,2]) ~ C, weights= c(gam[,k],gam[,k]))
         
       }
       else {
@@ -647,9 +644,10 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     }
     # On gère la potentielle moyenne à calculer.
     somme_theta = somme_theta + theta_nv
-    
+    print(theta_nv)
     # On met à jour la matrice des probabilités des émissions.
     B = proba_emission(obs, C, theta_nv, delta, Vits)
+    #browser()
     # On met à jour le compteur.
     compteur = compteur + 1
   }
@@ -659,7 +657,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   else {return(list(A,theta_nv,sqrt(Vits)))}
 }
 
-E = EM_Langevin_modif_A( Obs, Lambda, incr, vit, C, G = 20, moyenne = FALSE)
+E = EM_Langevin_modif_A( Obs, Lambda, incr, vit, C, G = 2, moyenne = FALSE)
 
 
 
@@ -741,7 +739,7 @@ C = matrix(NA, 2*(nbr_obs-1), J)
 for (t in 1:(nbr_obs-1)){
   for (j in 1:J){
     C[t,j] = CovGradLocs[t, j, 1]
-    C[t - 2 + nbr_obs,j] = CovGradLocs[t, j, 2]
+    C[t - 1 + nbr_obs,j] = CovGradLocs[t, j, 2]
   }
 }
 
