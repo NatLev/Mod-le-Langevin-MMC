@@ -28,7 +28,7 @@ ano = 50 # nombre d'anomalies.
 instants = seq(1, tps_final, length.out = (nbr_obs + ano))
 anomalies = sample(1:(nbr_obs + ano),ano)
 tps = instants[-anomalies]
-incr = increments(tps)
+incr = diff(tps)
 
 # Creation de la liste des covariables via Rhabit.
 
