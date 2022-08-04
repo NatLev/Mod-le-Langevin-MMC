@@ -234,9 +234,9 @@ Obs_generateur = function(Q, theta, C, vit, delta, dimension = 2){
     return(data.frame('X' = X, 'Z' = Z))
   }
 }
-OBS = Obs_generateur(Q, theta, C, vit = 0.4, tps)
 
-Generation_observation = function(theta, Q, liste_cov, vit, tps, loc0 = c(0,0)){
+Generation_observation = function(theta, Q, liste_cov, vit, tps, 
+                                  loc0 = c(0,0)){
   K = dim(theta)[2]
   nbr_obs = length(Q)
   Obs <- matrix(NA, nbr_obs, 2)
@@ -254,7 +254,8 @@ Generation_observation = function(theta, Q, liste_cov, vit, tps, loc0 = c(0,0)){
   }
   return(Obs)}
 
-Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affichage = TRUE){
+Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0),
+                                     affichage = TRUE){
   K = dim(theta)[2]
   t = length(Q)
   print(t)
@@ -286,7 +287,8 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
   
   return(Observations)}
 
-Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affichage = TRUE){
+Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), 
+                                     affichage = TRUE){
   K = dim(theta)[2]
   t = length(Q) 
   Obs <- matrix(NA, t, 2)
@@ -580,16 +582,12 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     # GAMMA.
     forw = forward_2.0( A, B, PI)
     alp = forw[[1]]
-    S_alp = forw[[2]]
-    proba_obs = forw[[3]]
     
     Back = backward_2.0( A, B)
     bet = Back[[1]]
-    S_bet = Back[[2]]
     
     gam = alp * bet
     for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
-    print(gam)
     
     # On gère la potentiel présence de NA dans la matrice gam.
     if (any(is.na(gam))){
@@ -600,9 +598,10 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     
     
     ## CALCUL DE A.
-    
+    # Formule Article de Bilmes avec la division par beta au lieu de la 
+    # renormalisation.
     Xi = array(1,dim = c( K, K, nbr_obs-1),)
-    for (t in 1:(nbr_obs-2)){
+    for (t in 1:(nbr_obs-1)){
       Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
     }
     
@@ -615,7 +614,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     for (k in 1:K){
       sg = sum(gam[1:nbr_obs-1,k])
       #print(matrix(sg, nrow= 1, ncol = K, byrow = TRUE))
-      somme_gam[k,] = matrix(sg, nrow= 1, ncol = K, byrow = TRUE)
+      somme_gam[k,] = matrix(1/sg, nrow= 1, ncol = K, byrow = TRUE)
     }
     
     
@@ -657,7 +656,126 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   else {return(list(A,theta_nv,sqrt(Vits)))}
 }
 
-E = EM_Langevin_modif_A( Obs, Lambda, incr, vit, C, G = 2, moyenne = FALSE)
+EM_Langevin_modif_Xi = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FALSE){
+  
+  compteur = 0
+  
+  # On gère la dimension du modèle. 
+  Dim = dim(obs)[2]
+  if (Dim == 4){
+    Z = cbind( obs$Z1, obs$Z2)
+    dimension = 2
+  }
+  else {Z = obs$Z}
+  
+  nbr_obs = dim(Z)[1] - 1
+  
+  # Extraction des paramètres du modèle.
+  A = Lambda$A
+  B = Lambda$B[1:nbr_obs,]
+  PI = Lambda$PI
+  
+  # On gère l'option moyenne si besoin.
+  somme_theta = matrix(0,J,K)
+  somme_A = matrix(0,K,K)
+  
+  
+  # # Construction de la matrice C avec la division temporelle.
+  # C_temp = C
+  # for (i in 1:nbr_obs){
+  #   C_temp[i] = C_temp[i]/sqrt(delta[i])
+  #   C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
+  # }
+  
+  
+  while (compteur < G){
+    print(paste('Tour',compteur))
+    ### EXPECTATION.
+    
+    # GAMMA.
+    forw = forward_2.0( A, B, PI)
+    alp = forw[[1]]
+    print(alp)
+    
+    Back = backward_2.0( A, B)
+    bet = Back[[1]]
+    print(bet)
+    
+    gam = alp * bet
+    for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
+    print(gam)
+    
+    # On gère la potentiel présence de NA dans la matrice gam.
+    if (any(is.na(gam))){
+      warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
+      if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
+      else {return(list(A,theta_nv,sqrt(vit)))}
+    }
+    
+    
+    ## CALCUL DE A.
+    
+    Xi = array(1,dim = c( K, K, nbr_obs-1),)
+    for (t in 1:(nbr_obs-1)){
+      Xi[,,t] = diag(gam[t,]) %*% A %*% diag(B[t+1,] * bet[t+1,])
+    }
+    
+    # Je fais la somme des Xi pour t allant de 1 à T-1.
+    somme_Xi = matrix(0,K,K)
+    for (t in 1:(nbr_obs-1)){somme_Xi = somme_Xi + Xi[,,t]}
+    
+    # Je fais la somme des gamma pour t allant de 1 à T-1.
+    somme_gam = matrix(0, nrow = K, ncol = K, byrow = TRUE)
+    for (k in 1:K){
+      sg = sum(gam[1:nbr_obs-1,k])
+      print(sg)
+      #print(matrix(sg, nrow= 1, ncol = K, byrow = TRUE))
+      somme_gam[k,] = matrix(1/sg, nrow= 1, ncol = K, byrow = TRUE)
+    }
+    print(somme_gam)
+    
+    # On obtient l'estimateur de la matrice A.
+    A = format_mat(somme_Xi * somme_gam)
+    somme_A = somme_A + A
+    
+    
+    # THETA.
+    theta_nv = matrix(1,J,K)
+    Vits = c()
+    print(length(c(gam[,k],gam[,k])))
+    for (k in 1:K){
+      # On gère les deux cas différents selon la dimension.
+      if (dimension == 2){
+        model = lm(c(Z[1:nbr_obs,1],Z[1:nbr_obs,2]) ~ C, weights= c(gam[,k],gam[,k]))
+        
+      }
+      else {
+        model = lm(Z ~ C, weights=gam[,k])
+      }
+      
+      # On récupère les coefficients.
+      Vits = c(Vits, summary(model)$sigma)
+      theta_nv[,k] = coef(model)[2:(J+1)]
+    }
+    # On gère la potentielle moyenne à calculer.
+    somme_theta = somme_theta + theta_nv
+    print(theta_nv)
+    # On met à jour la matrice des probabilités des émissions.
+    B = proba_emission(obs, C, theta_nv, delta, Vits)
+    #browser()
+    # On met à jour le compteur.
+    compteur = compteur + 1
+  }
+  
+  # On gère la moyenne si nécessaire.
+  if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
+  else {return(list(A,theta_nv,sqrt(Vits)))}
+}
+
+
+
+E = EM_Langevin_modif_Xi( Obs, Lambda, incr, vit, C, G = 1
+                         , moyenne = FALSE)
 
 
 
@@ -667,7 +785,7 @@ E = EM_Langevin_modif_A( Obs, Lambda, incr, vit, C, G = 2, moyenne = FALSE)
 #                                                                              #
 ################################################################################       
 
-nbr_obs = 1000      
+nbr_obs = 5000      
 K = 2       
 J = 2        
 dimension = 2  
@@ -677,7 +795,7 @@ PI = c(.7,.3)
 
 # Paramètre de création des covariables. 
 #seed = 1
-lim <- c(-15, 15, -15, 15) # limits of map
+lim <- c(-20, 20, -20, 20) # limits of map
 resol <- 0.1 # grid resolution
 rho <- 4; nu <- 1.5; sigma2 <- 10# Matern covariance parameters
 mean_function <- function(z){# mean function
@@ -744,10 +862,10 @@ for (t in 1:(nbr_obs-1)){
 }
 
 # Construction de la matrice C avec la division temporelle.
-for (i in 1:(nbr_obs-1)){
-  C[i] = C[i]/sqrt(incr[i])
-  C[nbr_obs - 1 + i] = C[nbr_obs - 1 +i]/sqrt(incr[i])
-}
+# for (i in 1:(nbr_obs-1)){
+#   C[i] = C[i]/sqrt(incr[i])
+#   C[nbr_obs - 1 + i] = C[nbr_obs - 1 +i]/sqrt(incr[i])
+# }
 
 
 # On initialise les parametres. 
@@ -763,28 +881,18 @@ Lambda = list('A' = A,
               'PI' = PI)
 Vits_init
 
-E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 2, moyenne = FALSE)
+E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 20, moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
 
+A = Lambda$A
+B = Lambda$B
 
-he = Lambda$B
-FOR = forward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),], PI)
+nbr_obs = nbr_obs
+Z = cbind( Obs$Z1, Obs$Z2)
 
-alp = FOR[[1]]
-S_alp = FOR[[2]]
-proba_obs = FOR[[3]]
+alp = forward_2.0(Lambda$A, Lambda$B, PI)[[1]]
 print(alp)
-#print(F)
-
-Back = backward_2.0( Lambda$A, Lambda$B[1:(nbr_obs-3),])
-bet = Back[[1]]
-S_bet = Back[[2]]
-print(Back)
+^bet = backward_2.0(Lambda$A, Lambda$B)[[1]]
 gam = alp * bet
-print(gam)
-for (t in 1:nbr_obs){gam[t,] = gam[t,]/(sum(gam[t,]))}
-print(gam)
-dim(gam)
-dim(alp)
-      
+for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/sum(gam[t,])}
