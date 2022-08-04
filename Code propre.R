@@ -36,7 +36,17 @@ format_mat = function(A){
 }
 
 increments = function(liste){
-  l = c()
+# Ca n'est pas très efficace de faire grossir un vecteur au fur et à mesure, 
+# ca fait bcp d'allocation memoire inutile et de copie dan sla zone mémoire
+# n <-  length(liste) - 1
+# l <-  numeric(length = n)
+# for (i in 1:(length(liste)-1)){
+#   l[i] <- liste[i+1] - liste[i]
+# }
+# Une autre option encore plus efficace
+# l <- diff(liste)  
+  
+    l = c()
   for (i in 1:(length(liste)-1)){
     l = c(l,liste[i+1] - liste[i])
   }
@@ -44,7 +54,9 @@ increments = function(liste){
 }
 
 matrix_to_list = function(mat){
-  l = list()
+# meme remarque que dans la fonction précédente, autant que possible quand tu connais la taille
+#   d'un objet il faut l'allouer des le début
+      l = list()
   N = ncol(mat)
   for (i in 1:N){
     l[[i]] = c(mat[,i])
@@ -70,7 +82,8 @@ CM_generateur = function(A, T){
   K = dim(A)[1]
   states = c()
   for (i in 1:K){states = c(states, as.character(i))}
-  
+# Autre option 
+# as.character(1:K)
   # On génère maintenant la chaîne de Markov. 
   CM<-new("markovchain", states = states,
           transitionMatrix = A, 
@@ -85,6 +98,9 @@ CM_generateur = function(A, T){
 ################################################################################
 ###                        Création des paramètres                           ###                               
 ################################################################################
+## peux tu indiquer le role des arguments del afonction 
+## K : nb états dans la chaine
+## J nombre de covariables
 
 BETA = function(K, J){
   n = K*J
@@ -92,8 +108,9 @@ BETA = function(K, J){
   return(matrix(liste, ncol = K, nrow = J))
 }
 Nu = function(BETA, delta, vit) { 
-  
-  # Les constantes utiles.
+  # Delta n'intervient pas danss le calcul de nu '
+  # nu = gamma^2 Beta, j'imagine que le gamma du papier est vit ici 
+  # # Les constantes utiles.
   dim = dim(BETA)
   J = dim[1]
   K = dim[2]
@@ -113,9 +130,21 @@ Nu = function(BETA, delta, vit) {
 BetaToNu = function(Beta, Vit){
   # Fonction qui prend en paramètre les betas et les gamma2 selon les etats et qui 
   # doit renvoyer la matrice theta correspondante.
+  # Question est que vit = gamma ou gamma^2
   C = c()
   K = length(Vit)
   J = length(Beta[[1]])
+  
+  # Dans R on peut faire un produit terme à terme
+  # C <- matrix(NA, ncol = ncol(Beta), nrow = nrow(Beta))
+  # for (k in 1:K){
+  # C[,k] <- Beta[,k]*Vit[k]  ## ou Vit^2 à clarifier
+  # }
+  # 
+  # ou meme encore plus compact mais moins lisible
+  # C <-  sweep(beta, 2, STATS = vit, FUN =  "*")
+  # Rmq C désigne aussi les covariables autant appelé ca Nu dans la fonction aussi
+  
   for (i in 1:K){
     C = c(C, Beta[[i]] * Vit[i])
   }
@@ -134,6 +163,7 @@ BetaToNu = function(Beta, Vit){
 # Paramètres :
 #         - obs, le data.frame contenant les informations sur le déplacement.
 #         - C, la matrice des covariables environnementales.
+## C est utilisé juste au desuus pouyr Beta * Vit
 #         - theta, le paramètre de lien.
 #         - Delta, la suite des pas de temps.
 #         - vit, la "vitesse" du processus aléatoire.
