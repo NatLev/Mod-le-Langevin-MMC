@@ -40,6 +40,19 @@ matrix_to_list = function(mat){
   return(l)
 }
 
+list_to_matrix = function(liste){
+  K = length(liste)
+  J = length(liste[[1]])
+  m = c()
+  for (i in 1:K){
+    m = c(m, liste[[i]])
+  }
+  return(matrix(m,J,K))
+}
+A = matrix(c(1,2,3,4,5,6),3,2)
+list_to_matrix(matrix_to_list(A))
+
+
 retourner = function(liste){
   l = length(liste)
   liste_retournee = c()

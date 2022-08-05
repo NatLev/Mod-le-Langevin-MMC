@@ -237,18 +237,13 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     ### EXPECTATION.
     
     # GAMMA.
-    forw = forward_2.0( A, B, PI)
-    alp = forw[[1]]
-    S_alp = forw[[2]]
-    proba_obs = forw[[3]]
-    
-    Back = backward_2.0( A, B)
-    bet = Back[[1]]
-    S_bet = Back[[2]]
+    alp = forward_2.0( A, B, PI)
+    bet = backward_2.0( A, B)
     
     gam = alp * bet
     for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
     print(gam)
+    
     
     # On gère la potentiel présence de NA dans la matrice gam.
     if (any(is.na(gam))){
@@ -274,7 +269,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
     for (k in 1:K){
       sg = sum(gam[1:nbr_obs-1,k])
       #print(matrix(sg, nrow= 1, ncol = K, byrow = TRUE))
-      somme_gam[k,] = matrix(sg, nrow= 1, ncol = K, byrow = TRUE)
+      somme_gam[k,] = matrix(1/sg, nrow= 1, ncol = K, byrow = TRUE)
     }
     
     

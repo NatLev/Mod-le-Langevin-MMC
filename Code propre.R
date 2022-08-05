@@ -148,7 +148,6 @@ BetaToNu = function(Beta, Vit){
   for (i in 1:K){
     C = c(C, Beta[[i]] * Vit[i])
   }
-  print(C)
   return(matrix(C, ncol = K, nrow = J))
 }
 

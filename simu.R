@@ -35,16 +35,10 @@ CM_generateur = function(A, nbr_obs){
   return(as.numeric(markovchainSequence( nbr_obs, CM)))
 }
 
-CM_generateur( A, nbr_obs)
-
-
 
 ################################################################################
 ###                        Création des paramètres                           ###                               
 ################################################################################
-## peux tu indiquer le role des arguments del afonction 
-## K : nb états dans la chaine
-## J nombre de covariables
 
 BETA = function(K, J){
   # K : nb états dans la chaine.
@@ -58,47 +52,19 @@ Nu = function(BETA, vit) {
   #        J * K.
   # vit : liste contenant les vitesses du processus dans chacun des états. Donc 
   #       de taille K.
-  
-  # # Les constantes utiles.
-  dim = dim(BETA)
-  J = dim[1]
-  K = dim[2]
-  
-  # Création de la matrice.
-  L = matrix(1, ncol = K, nrow = J)
-  
-  # Remplissage.
-  for (k in 1:K){
-    for (j in 1:J){
-      L[j,k] = (BETA[j,k]*vit**2)
-    }
-  }
-  return(L)
+  l = sweep(BETA, 2, STATS = vit**2, FUN =  "*")
+  return(l)
 }
-
+Nu(matrix(1,2,2),c(0.4,0.2))
 BetaToNu = function(Beta, Vit){
-  # Fonction qui prend en paramètre les betas et les gamma2 selon les etats et qui 
+  # Fonction qui prend en paramètre les betas et les gamma selon les etats et qui 
   # doit renvoyer la matrice theta correspondante.
-  # Question est que vit = gamma ou gamma^2 -> gamma. 
-  
-  K = length(Vit)
-  J = length(Beta[[1]])
-  
-  # Dans R on peut faire un produit terme à terme
-  # C <- matrix(NA, ncol = ncol(Beta), nrow = nrow(Beta))
-  # for (k in 1:K){
-  # C[,k] <- Beta[,k]*Vit[k]  ## ou Vit^2 à clarifier
-  # }
-  # 
-  # ou meme encore plus compact mais moins lisible
-  # C <-  sweep(beta, 2, STATS = vit, FUN =  "*")
-  # Rmq C désigne aussi les covariables autant appelé ca Nu dans la fonction aussi
-  
-  Nu <-  sweep(beta, 2, STATS = vit**2, FUN =  "*")
-  return(matrix(Nu, ncol = K, nrow = J))
+  Nu =  sweep(list_to_matrix(Beta), 2, STATS = Vit**2, FUN =  "*")
+  return(Nu)
 }
-
-theta = Nu(BETA(K,J), vit = c(.4,.38))
+b = matrix_to_list(Nu(BETA(2,2),0.4))
+#BetaToNu(matrix_to_list(Nu(BETA(2,2),0.4)),c(0.4,0.3))
+#theta = Nu(BETA(K,J), vit = c(.4,.38))
 
 ################################################################################
 ###                     Probabilités des apparitions                         ###                               

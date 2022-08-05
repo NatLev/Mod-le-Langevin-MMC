@@ -1,12 +1,12 @@
+RFoptions(install="no")
 source('utils.R')
 source('simu.R')
 source('estim.R')
 
-RFoptions(install="no")
 
 nbr_obs = 1000      
 K = 2       
-J = 2        
+J = 3        
 dimension = 2  
 vit = 0.4            
 #PI = c(.5,.3,.2)    
@@ -36,14 +36,14 @@ incr = diff(tps)
 liste_cov = list()
 for (i in 1:J){
   liste_cov[[i]] = Rhabit::simSpatialCov(lim, nu, rho, sigma2, resol = resol,
-                                         mean_function = mean_function,
-                                         raster_like = TRUE)
+                                 mean_function = mean_function,
+                                 raster_like = TRUE)
 }
 
-# liste_cov = lapply(1:J, Rhabit::simSpatialCov(lim, nu, rho, sigma2, 
-#                                               resol = resol,
-#                                               mean_function = mean_function,
-#                                               raster_like = TRUE))
+# liste_cov_2 = lapply(1:J, Rhabit::simSpatialCov(lim, nu, rho, sigma2, 
+#                                                resol = resol,
+#                                                mean_function = mean_function,
+#                                                raster_like = TRUE))
 
 # Creation de la suite des etats caches.
 
@@ -72,14 +72,16 @@ Obs = Generation_observation3.0(beta = matrix_to_list(theta), Q, C = liste_cov,
 # On calcule les valeurs du gradient des covariables en les observations et 
 # les met sous le bon format. 
 
+# as.matrix(Obs[, c(1,2)])
 MatObs = matrix(c(Obs$X1[1:(nbr_obs-1)],Obs$X2[1:(nbr_obs-1)]), (nbr_obs-1), 2, 
                 byrow = FALSE)
 CovGradLocs = covGradAtLocs(MatObs, liste_cov)
+# dire à quoi sert C
 C = matrix(NA, 2*(nbr_obs-1), J)
 for (t in 1:(nbr_obs-1)){
   for (j in 1:J){
-    C[t,j] = CovGradLocs[t, j, 1]
-    C[t - 1 + nbr_obs,j] = CovGradLocs[t, j, 2]
+    C[t,j] = CovGradLocs[t, 1, j]
+    C[t - 1 + nbr_obs,j] = CovGradLocs[t, 2, j]
   }
 }
 
@@ -101,7 +103,7 @@ Lambda = list('A' = A,
               'B' = proba_emission(Obs, C, theta_initial, incr,  Vits_init, 
                                    dimension),
               'PI' = PI)
-Lambda$B
+#Lambda$B
 E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 10, moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
