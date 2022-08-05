@@ -250,15 +250,15 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
   compteur = 0
   
   # On gère la dimension du modèle. 
-  Dim = dim(obs)[2]
+  Dim = 2
   if (Dim == 4){
     Z = cbind( obs$Z1, obs$Z2)
     dimension = 2
   }
   else {Z = obs$Z}
-  
+  print(Z)
   nbr_obs = dim(Z)[1] - 1
-  
+  print(nbr_obs)
   # Extraction des paramètres du modèle.
   A = Lambda$A
   B = Lambda$B[1:nbr_obs,]

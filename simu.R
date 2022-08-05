@@ -240,7 +240,7 @@ Generation_observation3.0 = function(liste_theta, Q, liste_cov, Vits, tps, loc0 
   for (t in 2:nbr_obs) {
     simu = simLangevinMM(liste_theta[[ Q[t] ]], Vits[Q[t]], c(tps[t-1],tps[t]), loc0 = Obs[t-1,], liste_cov, keep_grad = TRUE)
     Obs[t,] = as.numeric(simu[2,1:2])
-    grad[t,] = as.matrix(simu[2,4:ncol(simu)]) # On ne prend que les coordonnées du déplacement.
+    grad[t-1,] = as.matrix(simu[2,4:ncol(simu)])
   }
   
   # Potentiellement mettre un 0 au début comme avant plutôt qu'un NA à la fin, ce serait plus propre. 

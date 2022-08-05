@@ -68,6 +68,11 @@ theta
 Obs = Generation_observation3.0(liste_theta = matrix_to_list(theta), Q,  liste_cov, 
                                 Vits = c(.01,.01), tps)
 
+Obs$Q = Q
+Obs$t = tps
+colnames(Obs) = c('X1','X2','Z1','Z2',
+                  'grad_c1_x','grad_c1_y','grad_c2_x','grad_c2_y',
+                  'grad_c3_x','grad_c3_y','etats','t')
 # On construit le vecteur Y.
 Y = c(Obs$Z1[1:nbr_obs-1],Obs$Z2[1:nbr_obs-1])/sqrt(incr)
 
@@ -102,11 +107,12 @@ A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 Res_opt = estim_etatsconnus(Y, incr, Q[1:nbr_obs-1], C)
 
-
+fitted_langevin <- fit_langevin_ud(
+  cbind(X1,X2) ~  grad_c1 + grad_c2 + grad_c3  , data = Obs)
 
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
-              'B' = proba_emission(Obs, C, theta_initial, incr,  Vits_init, 
+              'B' = proba_emission(Obs, C, theta, incr,  Vits_init, 
                                    dimension),
               'PI' = PI)
 #Lambda$B
