@@ -34,60 +34,43 @@ backward_2.0 = function( A, B){
 ################################################################################
 ###                   Initialisation et Résultat optimal                     
 ###
-### deplacements : vecteur 2*(n-1) lignes, les n-1 premieres deplacement en x,
-###    et les suivantres dpelacements en y;,divises par sqrt(accroisements)
-### accroissements : vecteur (n-1) lignes, le tempes entre deux acquisitions de positions
-### etats : vecteur (n-1) lignes, les états fixés
-### C matrice (2(n-1), J) les n-1 premiere colonnes déricvées des covariables en x, les suivantes ne y
-### la fonction renvoie 
+### deplacements : vecteur 2*(n-1) lignes, les n-1 premieres deplacements en x,
+###     et les n -1 suivants deplacements en y (divises par sqrt(accroisements))
+### accroissements : vecteur (n-1) lignes, le temps entre deux acquisitions de 
+###     positions.
+### etats : vecteur (n-1) lignes, les états fixés.
+### C : matrice (2(n-1), J) les n-1 premiere colonnes dérivées des covariables 
+###     en x, les suivantes en y.
+### 
+### La fonction renvoie une liste d'autant de liste qu'il y a d'etats differents
+### dans etats. Chaque sous liste est composee de $theta qui est le vecteur des 
+### coefficients associes a l etat et $vitesse qui est la vitesse du processus 
+### dans cet etat. 
 ################################################################################
 
-estim_etatsconnus = function(deplacement, accroissements, etats, C){
-  # T = dim(Obs)[[1]]  T est un mot réservé en R, c"est la même chose que TRUE il ne faut pas le rédéfinir
-  nobs <- length(obs)/2
+estim_etatsconnus = function(deplacements, accroissements, etats, C){
+  nobs <- length(deplacements)/2
   K <-  n_distinct(etats)
   
   lapply(1:K, function(k){
     index <- which(etats == k)
-    obsk <- obs[c(index, index + nobs)]
+    obsk <- deplacements[c(index, index + nobs)]
     Dk <- 0.5 * C[c(index, index + nobs),]
     Zk <-  diag(sqrt(accroissements[c(index, index)])) %*% Dk
-    res <- lm(obsk ~ Zk)
-    return(list(theta = coef(res), vitesse= summary(ok)$sigma))
+    res <- lm(obsk ~ -1 + Zk)
+    return(list(theta = coef(res), vitesse= summary(res)$sigma))
   })
-  
-  # On ne parcourt qu'une seule fois les données et on les répartit dans les 
-  # différentes listes selon l'état prédit pour le déplacement. 
-  for (i in 1:T){
-    Z_rep[[Q[i]]] = c(Z_rep[[Q[i]]],i)   # On ajoute la coordonnée dans la bonne liste.
-  }
-  
-  # On construit les différentes sous-parties de Z (autant que d'états).  
-  for (i in 1:N_etats){
-    l1 = c()
-    l2 = c()
-    C_nv = c()
-    lgr = length(Z_rep[[i]])
-    for (t in Z_rep[[i]][2:lgr]){
-      l1 = c(l1,Z[t,1])
-      l2 = c(l2,Z[t,2])
-      C_nv = c(C_nv,C[t,])
-    }
-    C_nv = matrix(c(C_nv,C_nv), nrow = 2*length(l1),byrow = TRUE)
-    model = lm(c(l1,l2) ~ C_nv)
-    
-    coef = coef(model)[1:J+1]
-    Coef = c(Coef,coef)
-  }
-  
-  # On s'occupe maintenant d'estimer la matrice de transition. 
-  mcFitMLE <- markovchainFit(data = Q)
-  A = matrix(mcFitMLE$estimate[1:N_etats],N_etats,N_etats)
-  
-  return(list(A,matrix(Coef, ncol = N_etats)))
-  
 }
 
+# trackstest = data.frame(x= Obs$X1,
+#                         y = Obs$X2,
+#                         t = tps,
+#                         grad_c1_x = C[c(1:(nbr_obs-1),1),1],
+#                         grad_c2_x = C[c(1:(nbr_obs-1),1),2],
+#                         grad_c3_x = C[c(1:(nbr_obs-1),1),3],
+#                         grad_c1_y = C[nbr_obs-1 + c(1:(nbr_obs-1),1),1],
+#                         grad_c2_y = C[nbr_obs-1 + c(1:(nbr_obs-1),1),2],
+#                         grad_c3_y = C[nbr_obs-1 + c(1:(nbr_obs-1),1),1])
 
 ################################################################################
 ###                   Initialisation et Résultat optimal                     ###                               

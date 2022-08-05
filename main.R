@@ -68,6 +68,8 @@ theta
 Obs = Generation_observation3.0(beta = matrix_to_list(theta), Q, C = liste_cov, 
                                 Vits = c(.4,.42), tps)
 
+# On construit le vecteur Y.
+Y = c(Obs$Z1[1:nbr_obs-1],Obs$Z2[1:nbr_obs-1])/sqrt(incr)
 
 # On calcule les valeurs du gradient des covariables en les observations et 
 # les met sous le bon format. 
@@ -96,6 +98,10 @@ for (i in 1:(nbr_obs-1)){
 
 Init = initialisation(Obs, K, C, J)
 A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
+
+
+Res_opt = estim_etatsconnus(Y, incr, Q[1:nbr_obs-1], C)
+
 
 
 theta_initial = BetaToNu(Beta_init, Vits_init)
