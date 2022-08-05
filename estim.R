@@ -37,9 +37,9 @@ backward_2.0 = function( A, B){
 ################################################################################
 
 Result_opt = function(obs, N_etats, C, Q, J){
-  T = dim(Obs)[[1]]
+  nbr_obs = dim(Obs)[[1]]
   Coef = c()
-  Vitesses = c()
+  Vitesses = numeric(N_etats)
   
   # On gère les différentes dimensions.
   if (dimension == 2){Z = data.frame(obs$Z1,obs$Z2)}
@@ -57,7 +57,7 @@ Result_opt = function(obs, N_etats, C, Q, J){
   
   # On ne parcourt qu'une seule fois les données et on les répartit dans les 
   # différentes listes selon l'état prédit pour le déplacement. 
-  for (i in 1:T){
+  for (i in 1:nbr_obs){
     Z_rep[[Q[i]]] = c(Z_rep[[Q[i]]],i)   # On ajoute la coordonnée dans la bonne liste.
   }
   
@@ -89,9 +89,8 @@ Result_opt = function(obs, N_etats, C, Q, J){
 
 initialisation = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2){
   nbr_obs = dim(Obs)[[1]]
-  print(nbr_obs)
   Coef = c()
-  Vitesses = c()
+  Vitesses = numeric(N_etats)
   
   if (methode == 'kmeans'){
     # On gère les différentes dimensions.
@@ -103,13 +102,12 @@ initialisation = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2)
     
     # On extrait la suite prédite des états. 
     Q_km = km$cluster
-    print(paste(length(Q_km),'lgr Q_km'))
+    
     # On découpe Z selon les différents états. Je vais simplement stocker les 
     # indices et non pas directement les valeurs des Z_i. 
     
     # Répartition.
     Z_rep = list()
-    model = list()
     for (k in 1:N_etats){
       Z_rep[k] = c(0)
     }
@@ -119,7 +117,6 @@ initialisation = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2)
     for (i in 1:(nbr_obs-1)){
       Z_rep[[Q_km[i]]] = c(Z_rep[[Q_km[i]]],i)   # On ajoute la coordonnée dans la bonne liste.
     }
-    
     # On construit les différentes sous-parties de Z (autant que d'états).  
     for (i in 1:N_etats){
       l1 = c()
@@ -136,7 +133,7 @@ initialisation = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2)
       vit = summary(model)$sigma
       coef = coef(model)[1:J+1]
       Coef[[i]] = coef
-      Vitesses = c(Vitesses, vit)
+      Vitesses[i] = vit
     }
   }
   
@@ -147,6 +144,48 @@ initialisation = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2)
   
   return(list('A' = A, 'Beta' = Coef, 'Vitesses' = Vitesses))
 }
+initialisation(Obs, K, C, J
+            )
+
+initialisation_modif = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2){
+  nbr_obs = dim(Obs)[[1]]
+  Coef = c()
+  Vitesses = numeric(N_etats)
+  
+  if (methode == 'kmeans'){
+    # On gère les différentes dimensions.
+    if (dimension == 2){Z = data.frame('Z1' = obs$Z1[1:(nbr_obs-1)],
+                                       'Z2' = obs$Z2[1:(nbr_obs-1)])}
+    else {Z = obs$Z}
+    # On effectue le kmeans sur les observations.
+    km = kmeans(Z, N_etats)
+    
+    # On extrait la suite prédite des états. 
+    Q_km = km$cluster
+    
+    
+    # On construit les différentes sous-parties de Z (autant que d'états).  
+    for (i in 1:N_etats){
+      indices = which(Q_km == i)  # On récupère les indices. 
+      positions = as.matrix(obs[indices, c(1,2)]) # On récupère les positions.
+      C_modif = as.matrix(C[ c( indices, indices + nbr_obs - 1), c(1:J)])
+      
+      model = lm(c(positions[,1], positions[,2]) ~ C_modif)
+      Coef[[i]] = coef(model)[1:J+1]
+      Vitesses[i] = summary(model)$sigma
+    }
+  }
+  
+  # On s'occupe maintenant d'estimer la matrice de transition. 
+  #print(matrix(Q_km,1,T))
+  mcFitMLE <- markovchainFit(data = Q_km)
+  A = matrix(mcFitMLE$estimate[1:N_etats],N_etats,N_etats)
+  
+  return(list('A' = A, 'Beta' = Coef, 'Vitesses' = Vitesses))
+}
+initialisation_modif(Obs, K, C, J)
+initialisation(Obs, K, C, J)
+
 
 
 ################################################################################

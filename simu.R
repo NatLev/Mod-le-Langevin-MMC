@@ -55,16 +55,14 @@ Nu = function(BETA, vit) {
   l = sweep(BETA, 2, STATS = vit**2, FUN =  "*")
   return(l)
 }
-Nu(matrix(1,2,2),c(0.4,0.2))
+
 BetaToNu = function(Beta, Vit){
   # Fonction qui prend en paramètre les betas et les gamma selon les etats et qui 
   # doit renvoyer la matrice theta correspondante.
   Nu =  sweep(list_to_matrix(Beta), 2, STATS = Vit**2, FUN =  "*")
   return(Nu)
 }
-b = matrix_to_list(Nu(BETA(2,2),0.4))
-#BetaToNu(matrix_to_list(Nu(BETA(2,2),0.4)),c(0.4,0.3))
-#theta = Nu(BETA(K,J), vit = c(.4,.38))
+
 
 ################################################################################
 ###                     Probabilités des apparitions                         ###                               
@@ -76,7 +74,6 @@ b = matrix_to_list(Nu(BETA(2,2),0.4))
 # Paramètres :
 #         - obs, le data.frame contenant les informations sur le déplacement.
 #         - C, la matrice des covariables environnementales.
-## C est utilisé juste au desuus pouyr Beta * Vit
 #         - theta, le paramètre de lien.
 #         - Delta, la suite des pas de temps.
 #         - vit, la "vitesse" du processus aléatoire.
@@ -240,12 +237,9 @@ Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affi
     Obs[t,] = as.vector(as.numeric(xy[2,][,1:2])) # On ne prend que les coordonnées du déplacement.
     loc0 = as.vector(as.numeric(xy[2,][,1:2]))
   }
-  
-  # Potentiellement mettre un 0 au début comme avant plutôt qu'un NA à la fin, ce serait plus propre. 
   Observations = data.frame('X1' = Obs[,1], 'X2' = Obs[,2],
                             'Z1' = c(diff(Obs[,1]), NA), 
                             'Z2' = c(diff(Obs[,2]), NA))
-  
   return(Observations)}
 
 
