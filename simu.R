@@ -230,21 +230,24 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
   
   return(Observations)}
 
-Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affichage = TRUE){
+Generation_observation3.0 = function(liste_theta, Q, liste_cov, Vits, tps, loc0 = c(0,0), affichage = TRUE){
   K = dim(theta)[2]
+  J = length(liste_cov)
   nbr_obs = length(Q) 
   Obs <- matrix(NA, nbr_obs, 2)
+  grad<- matrix(NA, nbr_obs, 2*J)
   Obs[1,] = loc0
   for (t in 2:nbr_obs) {
-    xy = simLangevinMM(beta[[Q[t]]], Vits[Q[t]], c(tps[t-1],tps[t]), c(0,0), liste_cov, keep_grad = FALSE)
-    Obs[t,] = as.vector(as.numeric(xy[2,][,1:2])) # On ne prend que les coordonnées du déplacement.
-    loc0 = as.vector(as.numeric(xy[2,][,1:2]))
+    simu = simLangevinMM(liste_theta[[ Q[t] ]], Vits[Q[t]], c(tps[t-1],tps[t]), loc0 = Obs[t-1,], liste_cov, keep_grad = TRUE)
+    Obs[t,] = as.numeric(simu[2,1:2])
+    grad[t,] = as.matrix(simu[2,4:ncol(simu)]) # On ne prend que les coordonnées du déplacement.
   }
   
   # Potentiellement mettre un 0 au début comme avant plutôt qu'un NA à la fin, ce serait plus propre. 
   Observations = data.frame('X1' = Obs[,1], 'X2' = Obs[,2],
                             'Z1' = c(diff(Obs[,1]), NA), 
                             'Z2' = c(diff(Obs[,2]), NA))
+  Observations = cbind(Observations, grad)
   
   return(Observations)}
 

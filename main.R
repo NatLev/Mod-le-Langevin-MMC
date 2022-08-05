@@ -65,8 +65,8 @@ theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-Obs = Generation_observation3.0(beta = matrix_to_list(theta), Q, C = liste_cov, 
-                                Vits = c(.4,.42), tps)
+Obs = Generation_observation3.0(liste_theta = matrix_to_list(theta), Q,  liste_cov, 
+                                Vits = c(.01,.01), tps)
 
 # On construit le vecteur Y.
 Y = c(Obs$Z1[1:nbr_obs-1],Obs$Z2[1:nbr_obs-1])/sqrt(incr)
