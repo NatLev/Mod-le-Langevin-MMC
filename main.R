@@ -36,9 +36,14 @@ incr = diff(tps)
 liste_cov = list()
 for (i in 1:J){
   liste_cov[[i]] = Rhabit::simSpatialCov(lim, nu, rho, sigma2, resol = resol,
-                                 mean_function = mean_function,
-                                 raster_like = TRUE)
+                                         mean_function = mean_function,
+                                         raster_like = TRUE)
 }
+
+# liste_cov = lapply(1:J, Rhabit::simSpatialCov(lim, nu, rho, sigma2, 
+#                                               resol = resol,
+#                                               mean_function = mean_function,
+#                                               raster_like = TRUE))
 
 # Creation de la suite des etats caches.
 

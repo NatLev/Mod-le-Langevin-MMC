@@ -47,13 +47,18 @@ CM_generateur( A, nbr_obs)
 ## J nombre de covariables
 
 BETA = function(K, J){
+  # K : nb états dans la chaine.
+  # J : nombre de covariables.
   n = K*J
   liste = runif(n,-5,5)
   return(matrix(liste, ncol = K, nrow = J))
 }
 Nu = function(BETA, vit) { 
-  # Delta n'intervient pas danss le calcul de nu '
-  # nu = gamma^2 Beta, j'imagine que le gamma du papier est vit ici 
+  # BETA : une matrice contenant les paramètres beta du modèle. De taille 
+  #        J * K.
+  # vit : liste contenant les vitesses du processus dans chacun des états. Donc 
+  #       de taille K.
+  
   # # Les constantes utiles.
   dim = dim(BETA)
   J = dim[1]
@@ -136,6 +141,10 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
       mu =  C_tilde %*% theta / sqrt(Delta[t]) 
       for (k in 1:K){B[t,k] = dmvnorm( Z[t,], mu[,k], Vits[k]**2 * diag(2))}
     }
+    # lapply( 1:K, function(d){dmvnorm(Z[t,], mu[,d], Vits[d]**2 * diag(2))}) ?
+    # Peut être un lapply de lapply ?
+    # lapply(1:nbr_obs, function(t){ C_tilde; Mu; lapply(1:K, function(d){dmvnorm(Z[t,], mu[,d], Vits[d]**2 * diag(2))}) 
+    #})
   }
   else {
     # Remplissage de la matrice.
@@ -266,23 +275,10 @@ Generation_observation3.0 = function(beta, Q, C, Vits, time, loc0 = c(0,0), affi
     loc0 = as.vector(as.numeric(xy[2,][,1:2]))
   }
   
-  # On s'occupe du format de retour. 
-  
-  # Les Z. 
-  
-  
-  # Les X. 
+  # Potentiellement mettre un 0 au début comme avant plutôt qu'un NA à la fin, ce serait plus propre. 
   Observations = data.frame('X1' = Obs[,1], 'X2' = Obs[,2],
                             'Z1' = c(diff(Obs[,1]), NA), 
                             'Z2' = c(diff(Obs[,2]), NA))
-  # if (affichage){
-  #   Obs_affichage = Observations
-  #   Obs_affichage$'etats' = as.factor(Q[1:t-1])
-  #   
-  #   ggplot(Obs_affichage, aes(X1, X2)) +
-  #     geom_path()+
-  #     geom_point(aes(colour = etats)) 
-  # }
   
   return(Observations)}
 
