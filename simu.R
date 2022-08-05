@@ -27,22 +27,15 @@ library(FactoMineR)
 #
 # Retourne une suite numérique des états successifs.
 
-CM_generateur = function(A, T){
-  
-  # On commence par générer la suite "states".
+CM_generateur = function(A, nbr_obs){
   K = dim(A)[1]
-  states = c()
-  for (i in 1:K){states = c(states, as.character(i))}
-  # Autre option 
-  # as.character(1:K)
-  # On génère maintenant la chaîne de Markov. 
-  CM<-new("markovchain", states = states,
+  CM<-new("markovchain", states = as.character(lapply(1:K, as.character)),
           transitionMatrix = A, 
           name = "Q")
-  return(as.numeric(markovchainSequence(T,CM)))
+  return(as.numeric(markovchainSequence( nbr_obs, CM)))
 }
 
-
+CM_generateur( A, nbr_obs)
 
 
 
@@ -81,8 +74,8 @@ Nu = function(BETA, vit) {
 BetaToNu = function(Beta, Vit){
   # Fonction qui prend en paramètre les betas et les gamma2 selon les etats et qui 
   # doit renvoyer la matrice theta correspondante.
-  # Question est que vit = gamma ou gamma^2
-  C = c()
+  # Question est que vit = gamma ou gamma^2 -> gamma. 
+  
   K = length(Vit)
   J = length(Beta[[1]])
   
@@ -96,12 +89,11 @@ BetaToNu = function(Beta, Vit){
   # C <-  sweep(beta, 2, STATS = vit, FUN =  "*")
   # Rmq C désigne aussi les covariables autant appelé ca Nu dans la fonction aussi
   
-  for (i in 1:K){
-    C = c(C, Beta[[i]] * Vit[i])
-  }
-  print(C)
-  return(matrix(C, ncol = K, nrow = J))
+  Nu <-  sweep(beta, 2, STATS = vit**2, FUN =  "*")
+  return(matrix(Nu, ncol = K, nrow = J))
 }
+
+theta = Nu(BETA(K,J), vit = c(.4,.38))
 
 ################################################################################
 ###                     Probabilités des apparitions                         ###                               

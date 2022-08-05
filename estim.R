@@ -6,17 +6,15 @@ forward_2.0 = function( A, B, PI){
   nbr_obs = dim(B)[1]
   K = dim(B)[2]
   alp = matrix(1, ncol = K, nrow = nbr_obs)
-  somme = c()
   
   # On initialise.
   alp[1,] = PI * B[1,]
   
   for (t in 1:(nbr_obs-1)){
     a = (alp[t,] %*% A) %*% diag(B[t+1,])
-    somme = c(somme,sum(a))
     alp[t+1,] = a / sum(a)
   }
-  return(list(alp,somme,sum(alp[nbr_obs,])))
+  return(alp)
 }
 backward_2.0 = function( A, B){
   nbr_obs = dim(B)[1]
@@ -24,14 +22,12 @@ backward_2.0 = function( A, B){
   
   # Création de la matrice initialisée (dernière ligne égale à 1).
   bet = matrix(1, ncol = K, nrow = nbr_obs)
-  somme = c()
   
   for (t in (nbr_obs-1):1){
     b = A %*% (B[t+1,] * bet[t+1,])
-    somme = c(somme,sum(b))
     bet[t,] = b / sum(b)
   }
-  return(list(bet,somme))
+  return(bet)
 }
 
 
