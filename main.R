@@ -4,7 +4,7 @@ source('simu.R')
 source('estim.R')
 
 
-nbr_obs = 1000      
+nbr_obs = 100      
 K = 2       
 J = 2        
 dimension = 2  
@@ -23,8 +23,8 @@ mean_function <- function(z){# mean function
 
 
 # Creation de la suite des instants.
-tps_final = 1000
-ano = 50 # nombre d'anomalies.
+tps_final = 100
+ano = round(tps_final/100*5) # nombre d'anomalies.
 
 instants = seq(1, tps_final, length.out = (nbr_obs + ano))
 anomalies = sample(1:(nbr_obs + ano),ano)
@@ -56,56 +56,55 @@ A = matrix(c(1,0,1,0),
            nrow = K,
            byrow = TRUE)
 
-Q = CM_generateur( A, nbr_obs)
+ etats_caches = CM_generateur( A, nbr_obs)
 
 # Le parametre de lien. 
 
-theta = Nu(BETA(K,J), vit)
+beta_sim <-BETA(K,J) 
+theta = Nu(beta_sim, vit)
 theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-Obs = Generation_observation3.0(liste_theta = matrix_to_list(theta), Q,  liste_cov, 
-                                Vits = c(.01,.01), tps)
-
-Obs$Q = Q
-Obs$t = tps
-colnames(Obs) = c('X1','X2','Z1','Z2',
-                  'grad_c1_x','grad_c1_y','grad_c2_x','grad_c2_y','etats','t')
-
-# On construit le vecteur Y.
-Y = c(Obs$Z1[1:nbr_obs-1]/sqrt(incr),Obs$Z2[1:nbr_obs-1]/sqrt(incr))
-
-# On calcule les valeurs du gradient des covariables en les observations et 
-# les met sous le bon format. 
-
-# as.matrix(Obs[, c(1,2)])
-MatObs = matrix(c(Obs$X1[1:(nbr_obs-1)],Obs$X2[1:(nbr_obs-1)]), (nbr_obs-1), 2, 
-                byrow = FALSE)
-CovGradLocs = covGradAtLocs(MatObs, liste_cov)
-# dire à quoi sert C
-C = matrix(NA, 2*(nbr_obs-1), J)
-for (t in 1:(nbr_obs-1)){
-  for (j in 1:J){
-    C[t,j] = CovGradLocs[t, 1, j]
-    C[t - 1 + nbr_obs,j] = CovGradLocs[t, 2, j]
-  }
-}
-
-# Construction de la matrice C avec la division temporelle.
-for (i in 1:(nbr_obs-1)){
-  C[i] = C[i]/sqrt(incr[i])
-  C[nbr_obs - 1 + i] = C[nbr_obs - 1 +i]/sqrt(incr[i])
-}
+Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_caches,  liste_cov, 
+                                Vits = c(vit,vit), tps) %>% 
+  rowid_to_column()
 
 
-# On initialise les parametres. 
+# preparation du jeu de données incréments
+
+increments_dta <- Obs %>% 
+  mutate(Q = lag(Q)) %>% 
+  mutate(delta_t = t- lag(t)) %>% 
+  mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
+  mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
+  rename(dep_x = Z1, dep_y = Z2) %>% 
+  dplyr::select(-x, -y) %>% 
+  na.omit() %>%  
+  pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
+  arrange(dimension)  %>% 
+  mutate(cov1 = 0.5*sqrt(delta_t)*ifelse(dimension =="dep_x", grad_c1_x, grad_c1_y )) %>% 
+  mutate(cov2 = 0.5*sqrt(delta_t)*ifelse(dimension =="dep_x", grad_c2_x, grad_c2_y )) 
+
+
+## Y=increments_dta$deplacement
+## Z = increments_dta[, c('cov1', 'cov2' ....)]
+
+
+ 
+ # On utilise Rhabit pour analyser la trajectoire.
+fitted_langevin <- fit_langevin_ud(
+  cbind(x,y) ~  grad_c1 + grad_c2  , data = Obs)
+
+coef(fitted_langevin)
+
+
 
 Init = initialisation(Obs, K, C, J)
 A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 
-Res_opt = estim_etatsconnus(Y, incr, Q[1:nbr_obs-1], C)
+  Res_opt = estim_etatsconnus(Y=increments_dta$deplacement, Z = increments_dta[, c('cov1', 'cov2')], etats = rep(1, nrow(increments_dta)))
 Res_opt
 
 
@@ -120,9 +119,13 @@ Res_opt
 #
 ################################################################################
 
+
+
+
 # On utilise Rhabit pour analyser la trajectoire.
 fitted_langevin <- fit_langevin_ud(
-  cbind(X1,X2) ~  grad_c1 + grad_c2 + grad_c3  , data = Obs)
+  cbind(X1,X2) ~  grad_c1 + grad_c2  , data = Obs)
+
 
 # Ca ne marche pas avec 3 covariables, on en prend donc que 2.
 fitted_langevin <- fit_langevin_ud(
