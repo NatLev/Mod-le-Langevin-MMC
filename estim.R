@@ -1,8 +1,16 @@
 ################################################################################
-###                     Procédures forward et backward                       ###                               
+###                       Procedures forward et backward                                
+### A : matrice de transition.
+### B : matrice des probabilités d emission sous le modele.
+### PI : vecteur des probabilites initiales des etats.
+###
+### La fonction forward2.0 applique la procedure forward au modele. Elle renvoie
+### une matrice contenant les probabilites. La matrice a nbr_obs lignes et 
+### autant de colonnes qu il y a d etats.
 ################################################################################
 
 forward_2.0 = function( A, B, PI){
+  
   nbr_obs = dim(B)[1]
   K = dim(B)[2]
   alp = matrix(1, ncol = K, nrow = nbr_obs)
@@ -16,6 +24,9 @@ forward_2.0 = function( A, B, PI){
   }
   return(alp)
 }
+alp = forward_2.0( Lambda$A, Lambda$B, Lambda$PI)
+
+
 backward_2.0 = function( A, B){
   nbr_obs = dim(B)[1]
   K = dim(B)[2]
@@ -62,9 +73,11 @@ estim_etatsconnus = function(Y, Z, accroissements, etats){
     Z_k <-  as.matrix(Z[index, ]  )
     res <- lm(Y_k ~ -1 + Z_k)
     return(list(nu = coef(res), vitesse= summary(res)$sigma, beta= coef(res) / summary(res)$sigma^2))
+
   })
   return(estim_list)
 }
+
 
 # trackstest = data.frame(x= Obs$X1,
 #                         y = Obs$X2,
@@ -197,28 +210,55 @@ initialisation = function(obs, N_etats, C, J, methode = 'kmeans', dimension = 2)
   return(list('A' = A, 'Beta' = Coef, 'Vitesses' = Vitesses))
 }
 
+initialisation2.0 = function(obs, N_etats, C, incr, methode = 'kmeans', dimension = 2){
+  nbr_obs = dim(obs)[1]
+  
+  # on gère la dimension.
+  if (dimension == 2){Z = data.frame('Z1' = obs$Z1[1:(nbr_obs-1)],
+                                     'Z2' = obs$Z2[1:(nbr_obs-1)])}
+  # On approche d abord la suite des etats en utilisant la methode demandee. 
+  if (methode == 'kmeans'){
+    km = kmeans(Z, N_etats)
+    Q_km = km$cluster
+  }
+  # On met les observations sous le bon format. 
+  Y = c(Obs$Z1[1:nbr_obs-1]/sqrt(incr),Obs$Z2[1:nbr_obs-1]/sqrt(incr))
+  # On renvoie alors les coefficients.
+  return(estim_etatsconnus(Y, incr, Q_km, C))}
+
+#initialisation2.0(Obs, K, C, incr)
 
 ################################################################################
-###                               Viterbi                                    ###                               
+###                       Algorithme de Viterbi                                
+### A : matrice de transition.
+### B : matrice des probabilités d'emission sous le modele.
+### PI : vecteur des probabilites initiales des etats.
+###
+### La fonction applique l'algorithme de Viterbi et renvoie la suite d etats 
+### caches la plus probable selon le modele. La suite est renvoyee sous la forme
+### d une liste. 
 ################################################################################
+
+
+
 
 
 Viterbi = function(A,B,PI){
-  T = dim(B)[1]
+  nbr_obs = dim(B)[1]
   K = dim(A)[1]
   
   # Création des matrices.
-  delta = matrix(1,T,K)
-  phi = matrix(0,T,K)
+  delta = matrix(1,nbr_obs,K)
+  phi = matrix(0,nbr_obs,K)
   
   # Initialisation de la matrice delta.
   delta[1,] = PI * B[1,]
   # Récurrence.
-  for (t in 2:T){
+  for (t in 2:nbr_obs){
     for (j in 1:K){
       
       # On calcule toutes les transitions possibles arrivant dans l'état j.
-      dA = delta[t-1,] * A[,j] * 4
+      dA = delta[t-1,] * A[,j] * 4  # Pourquoi 4 ???
       
       # On trouve la transition la plus probable.
       Ind_max = which.max(dA)
@@ -235,20 +275,18 @@ Viterbi = function(A,B,PI){
   # On construit maintenant la suite d'état la plus probable.
   
   # On prend l'état final le plus probable.
-  fin_max = which.max(delta[T,])
-  P_et = delta[T,fin_max]
+  fin_max = which.max(delta[nbr_obs,])
+  P_et = delta[nbr_obs,fin_max]
   Q_et = c(fin_max)  # Initialisation de la suite d'état.
-  for (t in (T-1):1){
-    new_etat = phi[t+1,Q_et[T - t]]
+  for (t in (nbr_obs-1):1){
+    new_etat = phi[t+1,Q_et[nbr_obs - t]]
     #print(new_etat)
     Q_et = c(Q_et, new_etat)
   }
   return(retourner(Q_et))
 }
-################################################################################
-###                                 EM                                       ###                               
-################################################################################
 
+##############################################################################
 ################################################################################
 ###                            Algorithme EM                     
 ###
@@ -261,17 +299,18 @@ Viterbi = function(A,B,PI){
 ###     $PI : Vecteur contenant les probabilités initiales de commencer dans 
 ###           chaque état.
 ### delta : liste des pas de temps de taille nbr_obs-1.  
-### accroissements : vecteur (n-1) lignes, le temps entre deux acquisitions de 
-###     positions.
-### etats : vecteur (n-1) lignes, les états fixés.
-### C : matrice (2(n-1), J) les n-1 premiere colonnes dérivées des covariables 
-###     en x, les suivantes en y.
+### vit : liste des vitesses initiales pour chaque etat. 
+### G : Nombre d iteration de l'EM (par défaut 20).
+### moyenne : booléen (par défaut FALSE) régissant l'utilisation d une moyenne
+###           ou non.
+### dimension : nombre de dimension (par défaut 2).
 ### 
-### La fonction renvoie une liste d'autant de liste qu'il y a d'etats differents
-### dans etats. Chaque sous liste est composee de $theta qui est le vecteur des 
-### coefficients associes a l etat et $vitesse qui est la vitesse du processus 
-### dans cet etat. 
+### La fonction renvoie une liste : 
+###       $A : matrice de transition des etats caches. 
+###       $Nu : paramètre Nu des etats caches.
+###       $Vitesses : liste des vitesses de chaque etat cache.
 ################################################################################
+<<<<<<< HEAD
 # Y = c(Obs$Z1[1:nbr_obs-1],Obs$Z2[1:nbr_obs-1])/sqrt(incr)
 # EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, 
 #                                moyenne = FALSE, dimension = 2){
@@ -389,6 +428,240 @@ Viterbi = function(A,B,PI){
 # E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 10, moyenne = FALSE)
 # 
 # 
+=======
+EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, 
+                               moyenne = FALSE, dimension = 2){
+  
+  compteur = 0
+  
+  # On gère la dimension du modèle. 
+
+  if (dimension == 2){
+    Z = cbind( obs$Z1, obs$Z2)
+    dimension = 2
+  }
+  
+  else {Z = obs$Z}
+  nbr_obs = dim(Z)[1] - 1
+  
+  # Extraction des paramètres du modèle.
+  A = Lambda$A
+  B = Lambda$B[1:nbr_obs,]
+  PI = Lambda$PI
+  
+  # On gère l'option moyenne si besoin.
+  somme_theta = matrix(0,J,K)
+  somme_A = matrix(0,K,K)
+  
+  
+  # # Construction de la matrice C avec la division temporelle.
+  # C_temp = C
+  # for (i in 1:nbr_obs){
+  #   C_temp[i] = C_temp[i]/sqrt(delta[i])
+  #   C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
+  # }
+  
+  
+  while (compteur < G){
+    print(paste('Tour',compteur))
+    ### EXPECTATION.
+    
+    # GAMMA.
+    alp = forward_2.0( A, B, PI)
+    bet = backward_2.0( A, B)
+    
+    gam = alp * bet
+    for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
+    print(gam)
+    
+    
+    # On gère la potentiel présence de NA dans la matrice gam.
+    if (any(is.na(gam))){
+      warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
+      if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
+      else {return(list(A,theta_nv,sqrt(vit)))}
+    }
+    
+    
+    ## CALCUL DE A.
+    
+    Xi = array(1,dim = c( K, K, nbr_obs-1),)
+    for (t in 1:(nbr_obs-2)){
+      Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
+    }
+    
+    # Je fais la somme des Xi pour t allant de 1 à T-1.
+    somme_Xi = matrix(0,K,K)
+    for (t in 1:(nbr_obs-1)){somme_Xi = somme_Xi + Xi[,,t]}
+    
+    # Je fais la somme des gamma pour t allant de 1 à T-1.
+    somme_gam = matrix(0, nrow = K, ncol = K, byrow = TRUE)
+    for (k in 1:K){
+      sg = sum(gam[1:nbr_obs-1,k])
+      #print(matrix(sg, nrow= 1, ncol = K, byrow = TRUE))
+      somme_gam[k,] = matrix(1/sg, nrow= 1, ncol = K, byrow = TRUE)
+    }
+    
+    
+    # On obtient l'estimateur de la matrice A.
+    A = format_mat(somme_Xi * somme_gam)
+    somme_A = somme_A + A
+    
+    
+    # THETA.
+    theta_nv = matrix(1,J,K)
+    Vits = c()
+    print(length(c(gam[,k],gam[,k])))
+    for (k in 1:K){
+      # On gère les deux cas différents selon la dimension.
+      if (dimension == 2){
+        model = lm(c(Z[1:nbr_obs,1],Z[1:nbr_obs,2]) ~ C, weights= c(gam[,k],gam[,k]))
+        
+      }
+      else {
+        model = lm(Z ~ C, weights=gam[,k])
+      }
+      
+      # On récupère les coefficients.
+      Vits = c(Vits, summary(model)$sigma)
+      theta_nv[,k] = coef(model)[2:(J+1)]
+    }
+    # On gère la potentielle moyenne à calculer.
+    somme_theta = somme_theta + theta_nv
+    print(theta_nv)
+    # On met à jour la matrice des probabilités des émissions.
+    B = proba_emission(obs, C, theta_nv, delta, Vits)
+    #browser()
+    # On met à jour le compteur.
+    compteur = compteur + 1
+  }
+  
+  # On gère la moyenne si nécessaire.
+  if (moyenne){return(list(A = somme_A/G,Nu = somme_theta/G,
+                           Vitesses = sqrt(Vits)))}
+  else {return(list(A = A, Nu = theta_nv, Vitesses = sqrt(Vits)))}
+}
+
+
+EM_Langevin = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FALSE, 
+                       dimension = 2){
+  
+  compteur = 0
+  
+  # On gère la dimension du modèle. 
+  
+  if (dimension == 2){
+    Z = cbind( obs$Z1, obs$Z2)
+    Y = c(obs$Z1[1:nbr_obs-1],obs$Z2[1:nbr_obs-1])/sqrt(incr)
+  }
+  
+  else {Z = obs$Z}
+  nbr_obs = dim(Z)[1] - 1
+  
+  # Extraction des paramètres du modèle.
+  A = Lambda$A
+  B = Lambda$B[1:nbr_obs,]
+  PI = Lambda$PI
+  
+  # On gère l'option moyenne si besoin.
+  somme_theta = matrix(0,J,K)
+  somme_A = matrix(0,K,K)
+  
+  # Construction de la matrice C avec la division temporelle.
+  C_temp = C
+  for (i in 1:nbr_obs){
+    C_temp[i] = C_temp[i]/sqrt(delta[i])
+    C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
+  }
+
+  while (compteur < G){
+    print(paste('Tour',compteur))
+    ### EXPECTATION.
+    
+    # GAMMA.
+    alp = forward_2.0( A, B, PI)
+    bet = backward_2.0( A, B)
+    
+    gam = alp * bet
+    for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
+    print(gam)
+    
+    
+    # On gère la potentiel présence de NA dans la matrice gam.
+    if (any(is.na(gam))){  # anyNA marche aussi je crois bien.
+      warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
+      if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
+      else {return(list(A,theta_nv,sqrt(vit)))}
+    }
+    
+    ## CALCUL DE A.
+    
+    # # Formule Bilmes.
+    # Xi = array(1,dim = c( K, K, nbr_obs-1),)
+    # for (t in 1:(nbr_obs-2)){
+    #   Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
+    # }
+    
+    # Formule Rabiner. 
+    Xi = array(1,dim = c( K, K, nbr_obs-1),)
+    for (t in 1:(nbr_obs-2)){
+      Xi[,,t] = diag(gam[t,]) %*% A %*% diag(B[t+1,] * bet[t+1,])
+      Xi[,,t] = Xi[,,t]/sum(Xi[,,t])
+    }
+    
+    # Je fais la somme des Xi pour t allant de 1 à T-1.
+    somme_Xi = matrix(0,K,K)
+    for (t in 1:(nbr_obs-1)){somme_Xi = somme_Xi + Xi[,,t]}
+    
+    # Je fais la somme des gamma pour t allant de 1 à T-1.
+    somme_gam = matrix(0, nrow = K, ncol = K, byrow = TRUE)
+    for (k in 1:K){
+      sg = sum(gam[1:nbr_obs-1,k])
+      somme_gam[k,] = matrix(1/sg, nrow= 1, ncol = K, byrow = TRUE)
+    }
+    
+    
+    # On obtient l'estimateur de la matrice A.
+    A = format_mat(somme_Xi * somme_gam)
+    somme_A = somme_A + A
+    
+    
+    # THETA.
+    theta_nv = matrix(1,J,K)
+    Vits = c()
+    for (k in 1:K){
+      # On gère les deux cas différents selon la dimension.
+      if (dimension == 2){
+        model = lm(Y ~ C_temp, weights= c(gam[,k],gam[,k]))
+      }
+      else {
+        model = lm(Z ~ C_temp, weights=gam[,k])
+      }
+      # On récupère les coefficients.
+      Vits = c(Vits, summary(model)$sigma)
+      theta_nv[,k] = coef(model)[2:(J+1)]
+    }
+    # On gère la potentielle moyenne à calculer.
+    somme_theta = somme_theta + theta_nv
+    print(theta_nv)
+    # On met à jour la matrice des probabilités des émissions.
+    B = proba_emission(obs, C_temp, theta_nv, delta, Vits)
+    #browser()
+    # On met à jour le compteur.
+    compteur = compteur + 1
+  }
+  
+  # On gère la moyenne si nécessaire.
+  if (moyenne){return(list(A = somme_A/G,Nu = somme_theta/G,
+                           Vitesses = sqrt(Vits)))}
+  else {return(list(A = A, Nu = theta_nv, Vitesses = sqrt(Vits)))}
+}
+
+# E = EM_Langevin( Obs, Lambda, incr, c(0.4,0.4), C, G = 10, moyenne = FALSE)
+# print(list(E[[1]],E[[2]],E[[3]]))
+# theta
+
+>>>>>>> efff1c50a732531ec91d877bb3adefeb7b6017ff
 
 
 

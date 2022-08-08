@@ -8,9 +8,9 @@ nbr_obs = 100
 K = 2       
 J = 2        
 dimension = 2  
-vit = 0.4            
+vit = 0.4   ### C est gamma et pas gamma2 !!         
 #PI = c(.5,.3,.2)    
-PI = c(1,0)
+PI = c(.5,0.5)
 
 # Paramètre de création des covariables. 
 set.seed(1)
@@ -40,10 +40,10 @@ for (i in 1:J){
                                  raster_like = TRUE)
 }
 
-# liste_cov_2 = lapply(1:J, Rhabit::simSpatialCov(lim, nu, rho, sigma2, 
+# liste_cov_2 = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
 #                                                resol = resol,
 #                                                mean_function = mean_function,
-#                                                raster_like = TRUE))
+#                                                raster_like = TRUE)})
 
 # Creation de la suite des etats caches.
 
@@ -51,7 +51,7 @@ for (i in 1:J){
 #            ncol = K,
 #            nrow = K,
 #            byrow = TRUE)
-A = matrix(c(1,0,1,0),
+A = matrix(c(0.85,.15,.09,0.91),
            ncol = K,
            nrow = K,
            byrow = TRUE)
@@ -60,12 +60,14 @@ A = matrix(c(1,0,1,0),
 
 # Le parametre de lien. 
 
+<<<<<<< HEAD
 beta_sim <-BETA(K,J) 
 theta = Nu(beta_sim, vit)
 theta
 
 # Simulation des observations en utilisant Rhabit. 
 
+<<<<<<< HEAD
 Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_caches,  liste_cov, 
                                 Vits = c(vit,vit), tps) %>% 
   rowid_to_column()
@@ -89,15 +91,6 @@ increments_dta <- Obs %>%
 
 ## Y=increments_dta$deplacement
 ## Z = increments_dta[, c('cov1', 'cov2' ....)]
-
-
- 
- # On utilise Rhabit pour analyser la trajectoire.
-fitted_langevin <- fit_langevin_ud(
-  cbind(x,y) ~  grad_c1 + grad_c2  , data = Obs)
-
-coef(fitted_langevin)
-
 
 
 Init = initialisation(Obs, K, C, J)
@@ -146,14 +139,13 @@ Res_opt1
 
 
 
-
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
-              'B' = proba_emission(Obs, C, theta, incr,  Vits_init, 
+              'B' = proba_emission(Obs, C, theta, incr,  c(0.4,0.4), 
                                    dimension),
               'PI' = PI)
 #Lambda$B
-E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 10, moyenne = FALSE)
+E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 5, moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
 
