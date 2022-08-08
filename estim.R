@@ -245,20 +245,45 @@ Viterbi = function(A,B,PI){
 ###                                 EM                                       ###                               
 ################################################################################
 
-EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FALSE){
+################################################################################
+###                            Algorithme EM                     
+###
+### obs : dataframe de taille nbr_obs-1 avec les déplacements selon les deux 
+###       variables rangés dans chaque colonne. Il n'y a pas de division par 
+###       sqrt(incr) ici. 
+### Lambda : liste à trois elements contenant les paramètres du modèle initial. 
+###     $A : la matrice de transition initiale.
+###     $B : la matrice de probabilité d'émission initiale. 
+###     $PI : Vecteur contenant les probabilités initiales de commencer dans 
+###           chaque état.
+### delta : liste des pas de temps de taille nbr_obs-1.  
+### accroissements : vecteur (n-1) lignes, le temps entre deux acquisitions de 
+###     positions.
+### etats : vecteur (n-1) lignes, les états fixés.
+### C : matrice (2(n-1), J) les n-1 premiere colonnes dérivées des covariables 
+###     en x, les suivantes en y.
+### 
+### La fonction renvoie une liste d'autant de liste qu'il y a d'etats differents
+### dans etats. Chaque sous liste est composee de $theta qui est le vecteur des 
+### coefficients associes a l etat et $vitesse qui est la vitesse du processus 
+### dans cet etat. 
+################################################################################
+Y = c(Obs$Z1[1:nbr_obs-1],Obs$Z2[1:nbr_obs-1])/sqrt(incr)
+EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, 
+                               moyenne = FALSE, dimension = 2){
   
   compteur = 0
   
   # On gère la dimension du modèle. 
-  Dim = 2
-  if (Dim == 4){
+
+  if (dimension == 2){
     Z = cbind( obs$Z1, obs$Z2)
     dimension = 2
   }
+  
   else {Z = obs$Z}
-  print(Z)
   nbr_obs = dim(Z)[1] - 1
-  print(nbr_obs)
+  
   # Extraction des paramètres du modèle.
   A = Lambda$A
   B = Lambda$B[1:nbr_obs,]
@@ -357,6 +382,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FAL
 }
 
 
+E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 10, moyenne = FALSE)
 
 
 

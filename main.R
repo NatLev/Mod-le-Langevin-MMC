@@ -6,11 +6,11 @@ source('estim.R')
 
 nbr_obs = 1000      
 K = 2       
-J = 3        
+J = 2        
 dimension = 2  
 vit = 0.4            
 #PI = c(.5,.3,.2)    
-PI = c(.7,.3)
+PI = c(1,0)
 
 # Paramètre de création des covariables. 
 set.seed(1)
@@ -51,7 +51,7 @@ for (i in 1:J){
 #            ncol = K,
 #            nrow = K,
 #            byrow = TRUE)
-A = matrix(c(.85,.15,.09,.91),
+A = matrix(c(1,0,1,0),
            ncol = K,
            nrow = K,
            byrow = TRUE)
@@ -71,10 +71,10 @@ Obs = Generation_observation3.0(liste_theta = matrix_to_list(theta), Q,  liste_c
 Obs$Q = Q
 Obs$t = tps
 colnames(Obs) = c('X1','X2','Z1','Z2',
-                  'grad_c1_x','grad_c1_y','grad_c2_x','grad_c2_y',
-                  'grad_c3_x','grad_c3_y','etats','t')
+                  'grad_c1_x','grad_c1_y','grad_c2_x','grad_c2_y','etats','t')
+
 # On construit le vecteur Y.
-Y = c(Obs$Z1[1:nbr_obs-1],Obs$Z2[1:nbr_obs-1])/sqrt(incr)
+Y = c(Obs$Z1[1:nbr_obs-1]/sqrt(incr),Obs$Z2[1:nbr_obs-1]/sqrt(incr))
 
 # On calcule les valeurs du gradient des covariables en les observations et 
 # les met sous le bon format. 
@@ -106,9 +106,43 @@ A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 
 Res_opt = estim_etatsconnus(Y, incr, Q[1:nbr_obs-1], C)
+Res_opt
 
+
+
+
+
+
+################################################################################
+#
+#   Comparaison de la méthode Rhabit et de notre méthode pour 
+#   analyser les données
+#
+################################################################################
+
+# On utilise Rhabit pour analyser la trajectoire.
 fitted_langevin <- fit_langevin_ud(
   cbind(X1,X2) ~  grad_c1 + grad_c2 + grad_c3  , data = Obs)
+
+# Ca ne marche pas avec 3 covariables, on en prend donc que 2.
+fitted_langevin <- fit_langevin_ud(
+  cbind(X1,X2) ~  grad_c1 + grad_c2 , data = Obs)
+
+# On sort alors les coefficients.
+coef(fitted_langevin)
+speed_coef(fitted_langevin)
+
+# On utilise notre fonction du coup on dit qu'il n'y a qu'un seul etat. 
+Q_1etat = replicate(nbr_obs-1,1)
+Res_opt1 = estim_etatsconnus(Y, incr, Q_1etat, C[, 1:2])
+Res_opt1
+
+
+
+
+
+
+
 
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
