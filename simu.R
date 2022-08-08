@@ -91,7 +91,7 @@ b = matrix_to_list(Nu(BETA(2,2),0.4))
 
 
 proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
-  
+
   nbr_obs = length(obs$Z1) - 1  # On enleve 1 pour ne pas prendre le NA.
   K = dim(theta)[2]
   
@@ -104,7 +104,7 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
     # Remplissage de la matrice.
     for (t in 1:nbr_obs){
       C_tilde = matrix( c(C[t,],C[nbr_obs + t,]), nrow=2, byrow=TRUE)
-      mu =  C_tilde %*% theta / sqrt(Delta[t]) 
+      mu =  (C_tilde %*% theta) / sqrt(Delta[t]) 
       for (k in 1:K){B[t,k] = dmvnorm( Z[t,], mu[,k], Vits[k]**2 * diag(2))}
     }
     # lapply( 1:K, function(d){dmvnorm(Z[t,], mu[,d], Vits[d]**2 * diag(2))}) ?
@@ -120,7 +120,7 @@ proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
   }
   return(B)
 }
-
+#proba_emission(Obs, C, theta, incr, )
 ################################################################################
 ###                      Génération des observations                         ###                               
 ################################################################################

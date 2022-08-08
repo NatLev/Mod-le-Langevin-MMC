@@ -8,9 +8,9 @@ nbr_obs = 1000
 K = 2       
 J = 2        
 dimension = 2  
-vit = 0.4            
+vit = 0.4   ### C est gamma et pas gamma2 !!         
 #PI = c(.5,.3,.2)    
-PI = c(1,0)
+PI = c(.5,0.5)
 
 # Paramètre de création des covariables. 
 set.seed(1)
@@ -40,10 +40,10 @@ for (i in 1:J){
                                  raster_like = TRUE)
 }
 
-# liste_cov_2 = lapply(1:J, Rhabit::simSpatialCov(lim, nu, rho, sigma2, 
+# liste_cov_2 = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
 #                                                resol = resol,
 #                                                mean_function = mean_function,
-#                                                raster_like = TRUE))
+#                                                raster_like = TRUE)})
 
 # Creation de la suite des etats caches.
 
@@ -51,7 +51,7 @@ for (i in 1:J){
 #            ncol = K,
 #            nrow = K,
 #            byrow = TRUE)
-A = matrix(c(1,0,1,0),
+A = matrix(c(0.85,.15,.09,0.91),
            ncol = K,
            nrow = K,
            byrow = TRUE)
@@ -60,12 +60,13 @@ Q = CM_generateur( A, nbr_obs)
 
 # Le parametre de lien. 
 
-theta = Nu(BETA(K,J), vit)
+bets = BETA(K,J)
+theta = Nu(bets, vit)
 theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-Obs = Generation_observation3.0(liste_theta = matrix_to_list(theta), Q,  liste_cov, 
+Obs = Generation_observation3.0(liste_theta = matrix_to_list(bets), Q,  liste_cov, 
                                 Vits = c(.01,.01), tps)
 
 Obs$Q = Q
@@ -92,11 +93,11 @@ for (t in 1:(nbr_obs-1)){
   }
 }
 
-# Construction de la matrice C avec la division temporelle.
-for (i in 1:(nbr_obs-1)){
-  C[i] = C[i]/sqrt(incr[i])
-  C[nbr_obs - 1 + i] = C[nbr_obs - 1 +i]/sqrt(incr[i])
-}
+# # Construction de la matrice C avec la division temporelle.
+# for (i in 1:(nbr_obs-1)){
+#   C[i] = C[i]/sqrt(incr[i])
+#   C[nbr_obs - 1 + i] = C[nbr_obs - 1 +i]/sqrt(incr[i])
+# }
 
 
 # On initialise les parametres. 
@@ -143,14 +144,13 @@ Res_opt1
 
 
 
-
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
-              'B' = proba_emission(Obs, C, theta, incr,  Vits_init, 
+              'B' = proba_emission(Obs, C, theta, incr,  c(0.4,0.4), 
                                    dimension),
               'PI' = PI)
 #Lambda$B
-E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 10, moyenne = FALSE)
+E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 5, moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
 
