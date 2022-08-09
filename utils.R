@@ -10,6 +10,7 @@ format_mat = function(A){
   }
   return(A)
 }
+<<<<<<< HEAD
 
 
 ##create covariable
@@ -42,6 +43,26 @@ create_covariate_columns <- function(df){
 
 
 
+=======
+# 
+# increments = function(liste){
+#   # Ca n'est pas très efficace de faire grossir un vecteur au fur et à mesure, 
+#   # ca fait bcp d'allocation memoire inutile et de copie dan sla zone mémoire
+#   # n <-  length(liste) - 1
+#   # l <-  numeric(length = n)
+#   # for (i in 1:(length(liste)-1)){
+#   #   l[i] <- liste[i+1] - liste[i]
+#   # }
+#   # Une autre option encore plus efficace
+#   # l <- diff(liste)  
+#   
+#   l = c()
+#   for (i in 1:(length(liste)-1)){
+#     l = c(l,liste[i+1] - liste[i])
+#   }
+#   return(l)
+# }
+>>>>>>> d49ab23d25a32f17b51b7bb6ebd8f15327024ba7
 
 matrix_to_list = function(mat){
   # meme remarque que dans la fonction précédente, autant que possible quand tu connais la taille
@@ -75,4 +96,63 @@ retourner = function(liste){
   }
   return(liste_retournee)
 }
+
+
+
+################################################################################
+###                   Algorithme EM
+###
+### Paramètres : 
+### increments : dataframe contenant :
+###   
+### Lambda : liste contenant le modèle initial. 
+### Vitesses : liste des vitesses initiales selon les etats. 
+### G : nombre d iterations de l'EM. (Par défaut, 20).
+### moyenne :
+### 
+
+
+
+
+
+
+# THETA.
+theta_nv = matrix(1,J,K)
+Vits = numeric(K)
+
+
+Params = lapply(1:K, function(k){
+  model = lm(increments$deplacement ~ -1 + C, weights = c(gam[,k],gam[,k]))
+  return(list(nu = coef(model), vitesse = summary(model)$sigma))
+})
+
+
+for (k in 1:K){
+  # On gere les deux cas differents selon la dimension.
+  model = lm(increments_dta$deplacement ~ as.matrix(C), weights= c(gam[,k],gam[,k]))
+  
+  # On recupere les coefficients.
+  Vits[k] = summary(model)$sigma
+  theta_nv[,k] = coef(model)[2:(J+1)]
+}
+print(theta_nv)
+# On range les nouveaux parametres dans une liste.
+Params = list(Nu = theta_nv, vitesse = Vits)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
