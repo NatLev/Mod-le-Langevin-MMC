@@ -100,16 +100,15 @@ theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_cache
 
 
 
-theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
-              'B' = proba_emission(increments = increments_dta, param = Res_opt),
+              'B' = proba_emission(increments = increments_dta, param = param_init),
               'PI' = PI)
 #Lambda$B
 
 E = EM_Langevin(increments = increments_dta, 
                 Lambda = Lambda, 
                 Vitesses = c(0.4,0.4),
-                G = 4, 
+                G = 10, 
                 moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta

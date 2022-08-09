@@ -10,7 +10,7 @@ format_mat = function(A){
   }
   return(A)
 }
-<<<<<<< HEAD
+
 
 
 ##create covariable
@@ -41,9 +41,6 @@ create_covariate_columns <- function(df){
     mutate(across(matches("cov.[1234567890]+?"),.fns =  ~ 0.5*.x * sqrt(delta_t))) 
 }
 
-
-
-=======
 # 
 # increments = function(liste){
 #   # Ca n'est pas très efficace de faire grossir un vecteur au fur et à mesure, 
@@ -62,7 +59,6 @@ create_covariate_columns <- function(df){
 #   }
 #   return(l)
 # }
->>>>>>> d49ab23d25a32f17b51b7bb6ebd8f15327024ba7
 
 matrix_to_list = function(mat){
   # meme remarque que dans la fonction précédente, autant que possible quand tu connais la taille
@@ -110,38 +106,6 @@ retourner = function(liste){
 ### G : nombre d iterations de l'EM. (Par défaut, 20).
 ### moyenne :
 ### 
-
-
-
-
-
-
-# THETA.
-theta_nv = matrix(1,J,K)
-Vits = numeric(K)
-
-
-Params = lapply(1:K, function(k){
-  model = lm(increments$deplacement ~ -1 + C, weights = c(gam[,k],gam[,k]))
-  return(list(nu = coef(model), vitesse = summary(model)$sigma))
-})
-
-
-for (k in 1:K){
-  # On gere les deux cas differents selon la dimension.
-  model = lm(increments_dta$deplacement ~ as.matrix(C), weights= c(gam[,k],gam[,k]))
-  
-  # On recupere les coefficients.
-  Vits[k] = summary(model)$sigma
-  theta_nv[,k] = coef(model)[2:(J+1)]
-}
-print(theta_nv)
-# On range les nouveaux parametres dans une liste.
-Params = list(Nu = theta_nv, vitesse = Vits)
-
-
-
-
 
 
 

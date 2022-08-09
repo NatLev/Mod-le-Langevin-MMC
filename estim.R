@@ -234,9 +234,7 @@ Viterbi = function(A,B,PI){
 
 
 
-Z = cbind(increments_dta$deplacement[1:l],increments_dta$deplacement[(l+1):(2*l)])
-# 
-# 
+
 # EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, 
 #                                moyenne = FALSE, dimension = 2){
 #   
