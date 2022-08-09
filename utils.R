@@ -9,7 +9,7 @@ format_mat = function(A){
     A[i,] = A[i,]/(sum(A[i,]))
   }
   return(A)
-# }
+}
 # 
 # increments = function(liste){
 #   # Ca n'est pas très efficace de faire grossir un vecteur au fur et à mesure, 
@@ -61,4 +61,63 @@ retourner = function(liste){
   }
   return(liste_retournee)
 }
+
+
+
+################################################################################
+###                   Algorithme EM
+###
+### Paramètres : 
+### increments : dataframe contenant :
+###   
+### Lambda : liste contenant le modèle initial. 
+### Vitesses : liste des vitesses initiales selon les etats. 
+### G : nombre d iterations de l'EM. (Par défaut, 20).
+### moyenne :
+### 
+
+
+
+
+
+
+# THETA.
+theta_nv = matrix(1,J,K)
+Vits = numeric(K)
+
+
+Params = lapply(1:K, function(k){
+  model = lm(increments$deplacement ~ -1 + C, weights = c(gam[,k],gam[,k]))
+  return(list(nu = coef(model), vitesse = summary(model)$sigma))
+})
+
+
+for (k in 1:K){
+  # On gere les deux cas differents selon la dimension.
+  model = lm(increments_dta$deplacement ~ as.matrix(C), weights= c(gam[,k],gam[,k]))
+  
+  # On recupere les coefficients.
+  Vits[k] = summary(model)$sigma
+  theta_nv[,k] = coef(model)[2:(J+1)]
+}
+print(theta_nv)
+# On range les nouveaux parametres dans une liste.
+Params = list(Nu = theta_nv, vitesse = Vits)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

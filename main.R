@@ -10,7 +10,7 @@ J = 2
 dimension = 2  
 vit = 0.4   ### C est gamma et pas gamma2 !!         
 #PI = c(.5,.3,.2)    
-PI = c(1,0)
+PI = c(.6,0.4)
 
 # Paramètre de création des covariables. 
 set.seed(1)
@@ -119,7 +119,7 @@ B_test <- proba_emission(increments = increments_dta ,param = Res_opt)
 
 
 fitted_langevin <- fit_langevin_ud(
-  cbind(x,y) ~  grad_c1 + grad_c2 , data = Obs[Obs$etats_caches], )
+  cbind(x,y) ~  grad_c1 + grad_c2 , data = Obs)
 
 # On sort alors les coefficients.
 coef(fitted_langevin)
@@ -138,13 +138,11 @@ Res_opt1
 
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
-              'B' = proba_emission(Obs, C, theta, incr,  c(0.4,0.4), 
-                                   dimension),
+              'B' = proba_emission(increments = increments_dta, param = Res_opt),
               'PI' = PI)
 #Lambda$B
-E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 5, moyenne = FALSE)
+E = EM_Langevin( increments_dta, Lambda, c(0.4,0.4), G = 5, moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
-
 
 
