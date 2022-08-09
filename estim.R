@@ -102,8 +102,8 @@ backward_2.0 = function( A, B){
 ################################################################################
 
 estim_etatsconnus = function(increments, etats){
-  Y=increments_dta$deplacement 
-  cov_index <- str_detect(colnames(increments, 'cov'))
+  Y=increments$deplacement 
+  cov_index <- str_detect(colnames(increments), 'cov')
   Z = increments_dta[, cov_index]
   K <-  n_distinct(etats)
   etats_2n <- c(etats, etats)
@@ -126,7 +126,22 @@ initialisation2.0 = function(increments, K,  methode = 'kmeans'){
     Z <- matrix(increments$deplacement, nrow = nbr_obs)
     km = kmeans(Z, K) 
   }
-  return(estim_etatsconnus(increments, km$cluster))}
+  A = km$cluster %>% 
+    as_tibble() %>% 
+    rename(P2= value) %>% 
+    mutate(P1=lag(P2)) %>% 
+    na.omit() %>% 
+    group_by(P1,P2) %>% 
+    summarise(n =n()) %>% 
+    mutate(ntot=sum(n)) %>% 
+    mutate(p = n/ntot) %>%
+    ungroup() %>% 
+    dplyr::select(P1,P2,p) %>% 
+    pivot_wider( names_from = P2, values_from = p ) %>% as.matrix()
+
+  
+  return(list(A= A, param = estim_etatsconnus(increments = increments, etats = km$cluster )))
+}
 
 #initialisation2.0(Obs, K, C, incr)
 

@@ -84,23 +84,20 @@ increments_dta <- Obs %>%
   dplyr::select(-x, -y) %>% 
   na.omit() %>%  
   pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
-  arrange(dimension)  %>% 
-  mutate(cov1 = 0.5*sqrt(delta_t)*ifelse(dimension =="dep_x", grad_c1_x, grad_c1_y )) %>% 
-  mutate(cov2 = 0.5*sqrt(delta_t)*ifelse(dimension =="dep_x", grad_c2_x, grad_c2_y )) 
+  arrange(dimension) %>% 
+  create_covariate_columns()
+
 
 
 ## Y=increments_dta$deplacement
 ## Z = increments_dta[, c('cov1', 'cov2' ....)]
 
+Init = initialisation2.0(increments_dta, K,  methode = 'kmeans')
+  
+A_init = Init$A; param_init = Init$param;
 
-Init = initialisation(Obs, K, C, J)
-A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
+theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_caches)
 
-
-Res_opt = estim_etatsconnus(Y=increments_dta$deplacement, Z = increments_dta[, c('cov1', 'cov2')], etats = increments_dta$etats_caches)
-Res_opt
-
-B_test <- proba_emission(increments = increments_dta ,param = Res_opt)
 
 
 
