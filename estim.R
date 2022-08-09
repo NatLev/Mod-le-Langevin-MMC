@@ -310,7 +310,7 @@ Viterbi = function(A,B,PI){
 ###       $Nu : paramètre Nu des etats caches.
 ###       $Vitesses : liste des vitesses de chaque etat cache.
 ################################################################################
-<<<<<<< HEAD
+
 # Y = c(Obs$Z1[1:nbr_obs-1],Obs$Z2[1:nbr_obs-1])/sqrt(incr)
 # EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, 
 #                                moyenne = FALSE, dimension = 2){
@@ -428,7 +428,10 @@ Viterbi = function(A,B,PI){
 # E = EM_Langevin_modif_A( Obs, Lambda, incr, Vits_init, C, G = 10, moyenne = FALSE)
 # 
 # 
-=======
+
+Z = cbind(increments_dta$deplacement[1:l],increments_dta$deplacement[(l+1):(2*l)])
+
+
 EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, 
                                moyenne = FALSE, dimension = 2){
   
@@ -543,7 +546,7 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10,
 }
 
 
-EM_Langevin = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FALSE, 
+EM_Langevin = function(increments_dta, Lambda, vit, C, G = 10, moyenne = FALSE, 
                        dimension = 2){
   
   compteur = 0
@@ -635,7 +638,7 @@ EM_Langevin = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FALSE,
         model = lm(Y ~ C_temp, weights= c(gam[,k],gam[,k]))
       }
       else {
-        model = lm(Z ~ C_temp, weights=gam[,k])
+        model = lm(Z ~ C, weights=gam[,k])
       }
       # On récupère les coefficients.
       Vits = c(Vits, summary(model)$sigma)
@@ -644,9 +647,10 @@ EM_Langevin = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FALSE,
     # On gère la potentielle moyenne à calculer.
     somme_theta = somme_theta + theta_nv
     print(theta_nv)
+    
     # On met à jour la matrice des probabilités des émissions.
-    B = proba_emission(obs, C_temp, theta_nv, delta, Vits)
-    #browser()
+    B = proba_emission(Z, C, theta_nv, delta, Vits)
+    
     # On met à jour le compteur.
     compteur = compteur + 1
   }
@@ -661,7 +665,6 @@ EM_Langevin = function(obs, Lambda, delta, vit, C, G = 10, moyenne = FALSE,
 # print(list(E[[1]],E[[2]],E[[3]]))
 # theta
 
->>>>>>> efff1c50a732531ec91d877bb3adefeb7b6017ff
 
 
 

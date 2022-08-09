@@ -4,13 +4,13 @@ source('simu.R')
 source('estim.R')
 
 
-nbr_obs = 100      
+nbr_obs = 1000      
 K = 2       
 J = 2        
 dimension = 2  
 vit = 0.4   ### C est gamma et pas gamma2 !!         
 #PI = c(.5,.3,.2)    
-PI = c(.5,0.5)
+PI = c(1,0)
 
 # Paramètre de création des covariables. 
 set.seed(1)
@@ -51,32 +51,32 @@ for (i in 1:J){
 #            ncol = K,
 #            nrow = K,
 #            byrow = TRUE)
-A = matrix(c(0.85,.15,.09,0.91),
+A = matrix(c(1,0,1,0),
            ncol = K,
            nrow = K,
            byrow = TRUE)
 
- etats_caches = CM_generateur( A, nbr_obs)
+etats_caches = CM_generateur( A, nbr_obs)
 
 # Le parametre de lien. 
 
-<<<<<<< HEAD
+
 beta_sim <-BETA(K,J) 
 theta = Nu(beta_sim, vit)
 theta
 
 # Simulation des observations en utilisant Rhabit. 
 
-<<<<<<< HEAD
+
 Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_caches,  liste_cov, 
                                 Vits = c(vit,vit), tps) %>% 
   rowid_to_column()
 
-
+Obs
 # preparation du jeu de données incréments
 
 increments_dta <- Obs %>% 
-  mutate(Q = lag(Q)) %>% 
+  mutate(etats_caches = lag(etats_caches)) %>% 
   mutate(delta_t = t- lag(t)) %>% 
   mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
   mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
@@ -97,7 +97,7 @@ Init = initialisation(Obs, K, C, J)
 A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 
-  Res_opt = estim_etatsconnus(Y=increments_dta$deplacement, Z = increments_dta[, c('cov1', 'cov2')], etats = rep(1, nrow(increments_dta)))
+Res_opt = estim_etatsconnus(Y=increments_dta$deplacement, Z = increments_dta[, c('cov1', 'cov2')], etats = rep(1, nrow(increments_dta)))
 Res_opt
 
 
@@ -122,7 +122,7 @@ fitted_langevin <- fit_langevin_ud(
 
 # Ca ne marche pas avec 3 covariables, on en prend donc que 2.
 fitted_langevin <- fit_langevin_ud(
-  cbind(X1,X2) ~  grad_c1 + grad_c2 , data = Obs)
+  cbind(x,y) ~  grad_c1 + grad_c2 , data = Obs)
 
 # On sort alors les coefficients.
 coef(fitted_langevin)
