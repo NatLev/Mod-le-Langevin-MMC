@@ -100,46 +100,19 @@ theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_cache
 
 
 
-
-
-################################################################################
-#
-#   Comparaison de la méthode Rhabit et de notre méthode pour 
-#   analyser les données
-#
-################################################################################
-
-
-
-
-
-
-
-fitted_langevin <- fit_langevin_ud(
-  cbind(x,y) ~  grad_c1 + grad_c2 , data = Obs)
-
-# On sort alors les coefficients.
-coef(fitted_langevin)
-speed_coef(fitted_langevin)
-
-# On utilise notre fonction du coup on dit qu'il n'y a qu'un seul etat. 
-Q_1etat = replicate(nbr_obs-1,1)
-Res_opt1 = estim_etatsconnus(Y, incr, Q_1etat, C[, 1:2])
-Res_opt1
-
-
-
-
-
-
-
 theta_initial = BetaToNu(Beta_init, Vits_init)
 Lambda = list('A' = A,
               'B' = proba_emission(increments = increments_dta, param = Res_opt),
               'PI' = PI)
 #Lambda$B
-E = EM_Langevin( increments_dta, Lambda, c(0.4,0.4), G = 5, moyenne = FALSE)
+
+E = EM_Langevin(increments = increments_dta, 
+                Lambda = Lambda, 
+                Vitesses = c(0.4,0.4),
+                G = 4, 
+                moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
+
 
 
