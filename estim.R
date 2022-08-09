@@ -331,8 +331,9 @@ EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10,
   else {return(list(A = A, Nu = theta_nv, Vitesses = sqrt(Vits)))}
 }
 
-
+library(stringr)
 EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
+  
   compteur = 0
   # On gère la dimension du modèle.
   nbr_obs = dim(increments_dta)[1]/2
@@ -341,14 +342,14 @@ EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
   A = Lambda$A
   B = Lambda$B
   PI = Lambda$PI
-  
   K = dim(B)[2]
+  
   # On gère l'option moyenne si besoin.
   somme_theta = matrix(0,J,K)
   somme_A = matrix(0,K,K)
   
   # Extraction de la matrice C.
-  C = as.matrix(increments_dta[,str_detect(colnames(increments_dta),"cov")])
+  C = as.matrix(increments_dta[,stringr::str_detect(colnames(increments_dta),"cov")])
   J = dim(C)[2]
   
   while (compteur < G){
@@ -417,16 +418,17 @@ EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
     # On met à jour la matrice des probabilités des émissions.
     B = proba_emission(increments, Params)
     
-    print(A)
-    num = numeric(K*J)
+    num = list()
     vits = numeric(K)
     for (k in 1:K){
-      num[(1*k):(J*k)] = Params[[k]]$nu
-      print(Params[[k]]$nu)
+      num = c(num, Params[[k]]$nu)
       vits[k] = Params[[k]]$vitesse
-    }
-    theta_nv = matrix(num, nrow = J, ncol = K)
+      }
+    theta_nv = matrix(num, nrow = J, ncol = K, )
+    
+    print(A)
     print(theta_nv)
+    
     # On met à jour le compteur.
     compteur = compteur + 1
   }
@@ -437,7 +439,7 @@ EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
 E = EM_Langevin(increments = increments_dta, 
                 Lambda = Lambda, 
                 Vitesses = c(0.4,0.4),
-                G = 1, 
+                G = 4, 
                 moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
