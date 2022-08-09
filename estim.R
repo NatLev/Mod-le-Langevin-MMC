@@ -23,8 +23,7 @@
 
 
 proba_emission = function(increments, param){
-  nbr_obs = nrow(increments)/2 ## attention on a deux observations par temps 
-  K = dim(theta)[2]
+  K = length(param)
   cov_index <- str_detect(colnames(increments), "cov")
   # Création de la matrice.
   B = matrix(0, ncol = K, nrow = nbr_obs)
