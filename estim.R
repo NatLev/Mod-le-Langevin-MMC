@@ -1,4 +1,43 @@
 ################################################################################
+###                     Probabilités des apparitions                         ###                               
+################################################################################
+# Fonction calculant la probabilité des émissions, c'est à dire la probabilité 
+# de chaque "partie" du déplacement de l'animal. Il prend en compte la 
+# dimension 1 et 2.
+
+# Paramètres :
+#         - obs, le data.frame contenant les informations sur le déplacement.
+#         - C, la matrice des covariables environnementales.
+## C est utilisé juste au desuus pouyr Beta * Vit
+#         - theta, le paramètre de lien.
+#         - Delta, la suite des pas de temps.
+#         - vit, la "vitesse" du processus aléatoire.
+#         - dimension, la dimension considérée, elle est de base égale à 2. 
+#
+# Retourne un dataframe avec deux composantes :
+#         - B, la matrice des probabilités des déplacements, T lignes, K 
+#           colonnes.
+#
+# Remarques :
+#         - Seules les dimensions 1 et 2 sont prises en compte ici.
+
+
+proba_emission = function(increments, param){
+  nbr_obs = nrow(increments)/2 ## attention on a deux observations par temps 
+  K = dim(theta)[2]
+  cov_index <- str_detect(colnames(increments), "cov")
+  # Création de la matrice.
+  B = matrix(0, ncol = K, nrow = nbr_obs)
+  for (k in 1:K){
+    prov <- matrix(dnorm( increments$deplacement, mean=  as.matrix(increments[, cov_index]) %*% matrix(param[[k]]$nu, nrow=2), sd = param[[k]]$vitesse), ncol= 2) 
+    B[,k] <- prov[,1]* prov[,2]    
+  }
+  return(B)
+}
+
+
+
+################################################################################
 ###                       Procedures forward et backward                                
 ### A : matrice de transition.
 ### B : matrice des probabilités d emission sous le modele.
@@ -24,7 +63,7 @@ forward_2.0 = function( A, B, PI){
   }
   return(alp)
 }
-alp = forward_2.0( Lambda$A, Lambda$B, Lambda$PI)
+# alp = forward_2.0( Lambda$A, Lambda$B, Lambda$PI)
 
 
 backward_2.0 = function( A, B){

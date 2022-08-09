@@ -51,7 +51,7 @@ for (i in 1:J){
 #            ncol = K,
 #            nrow = K,
 #            byrow = TRUE)
-A = matrix(c(1,0,1,0),
+A = matrix(c(0.95,0.05,0.1,0.9),
            ncol = K,
            nrow = K,
            byrow = TRUE)
@@ -97,10 +97,10 @@ Init = initialisation(Obs, K, C, J)
 A_init = Init$A; Beta_init = Init$Beta; Vits_init = Init$Vitesses
 
 
-Res_opt = estim_etatsconnus(Y=increments_dta$deplacement, Z = increments_dta[, c('cov1', 'cov2')], etats = rep(1, nrow(increments_dta)))
+Res_opt = estim_etatsconnus(Y=increments_dta$deplacement, Z = increments_dta[, c('cov1', 'cov2')], etats = increments_dta$etats_caches)
 Res_opt
 
-
+B_test <- proba_emission(increments = increments_dta ,param = Res_opt)
 
 
 
@@ -115,14 +115,11 @@ Res_opt
 
 
 
-# On utilise Rhabit pour analyser la trajectoire.
-fitted_langevin <- fit_langevin_ud(
-  cbind(X1,X2) ~  grad_c1 + grad_c2  , data = Obs)
 
 
-# Ca ne marche pas avec 3 covariables, on en prend donc que 2.
+
 fitted_langevin <- fit_langevin_ud(
-  cbind(x,y) ~  grad_c1 + grad_c2 , data = Obs)
+  cbind(x,y) ~  grad_c1 + grad_c2 , data = Obs[Obs$etats_caches], )
 
 # On sort alors les coefficients.
 coef(fitted_langevin)
