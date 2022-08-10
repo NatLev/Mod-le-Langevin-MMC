@@ -4,41 +4,67 @@ source('simu.R')
 source('estim.R')
 
 
-nbr_obs = 100      
+# covariate generation ----------------------------------------------------
+
+
+liste_cov = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
+                                                          resol = resol,
+                                                          mean_function = mean_function,
+                                                          raster_like = TRUE)})
+
+### Options graphiques
+ggopts <- theme_light()+theme(text = element_text(size = 10),
+                              axis.text = element_blank(),
+                              axis.title = element_blank(),
+                              legend.key.height= unit(3, "line"),
+                              strip.background = element_rect(fill="white",colour = "grey") ,
+                              strip.text = element_text(size = 25, color = "black"))
+levels <- factor(paste("Covariate", 1:J), levels = paste("Covariate", 1:J))
+cov_df <- do.call(rbind.data.frame,
+                  lapply(1:J,
+                         function(j){
+                           Rhabit::rasterToDataFrame(liste_cov[[j]], levels[j])
+                         }))
+
+
+p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
+  coord_equal() + scale_fill_viridis(name = "Value") + facet_wrap(level~.) +
+  ggopts
+p1
+
+
+
+# parameters simu ---------------------------------------------------------
+
+
+nbr_obs = 200      
 K = 2       
 J = 1        
 dimension = 2  
-vit = 0.4   ### C est gamma et pas gamma2 !!         
+vit = 1   ### C est gamma et pas gamma2 !!         
 #PI = c(.5,.3,.2)    
 PI = c(.6,0.4)
 
 # Paramètre de création des covariables. 
 set.seed(1)
-lim <- c(-15, 15, -15, 15) # limits of map
+lim <- c(-30, 30, -30, 30) # limits of map
 resol <- 0.1 # grid resolution
-rho <- 4; nu <- 1.5; sigma2 <- 10# Matern covariance parameters
+rho <- 2; nu <- 1.5; sigma2 <- 30# Matern covariance parameters
 mean_function <- function(z){# mean function
   -log(3 + sum(z^2))}
 
 
 
 # Creation de la suite des instants.
-tps_final = 100
-ano = round(tps_final/100*5) # nombre d'anomalies.
+tps_final = 30
+ano = round(nbr_obs/100*5) # nombre d'anomalies.
 
 instants = seq(1, tps_final, length.out = (nbr_obs + ano))
 anomalies = sample(1:(nbr_obs + ano),ano)
 tps = instants[-anomalies]
-incr = diff(tps)
 
 # Creation de la liste des covariables via Rhabit.
 
-liste_cov = list()
-for (i in 1:J){
-  liste_cov[[i]] = Rhabit::simSpatialCov(lim, nu, rho, sigma2, resol = resol,
-                                 mean_function = mean_function,
-                                 raster_like = TRUE)
-}
 
 
 # Creation de la suite des etats caches.
@@ -58,7 +84,8 @@ etats_caches = CM_generateur( A, nbr_obs)
 
 
 
-beta_sim <-BETA(K,J) 
+beta_sim <-BETA(K = K, J=J)  ## une colonne par etats cachés, une ligne par covariable
+beta_sim <- matrix(c(3,-3, -3,3), ncol = K, nrow = J)
 theta = Nu(beta_sim, vit)
 theta
 
@@ -69,8 +96,8 @@ Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_ca
                                 Vits = c(vit,vit), tps) %>% 
   rowid_to_column()
 
-Obs
-# preparation du jeu de données incréments
+p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
+
 
 increments_dta <- Obs %>% 
   mutate(etats_caches = lag(etats_caches)) %>% 
@@ -85,7 +112,17 @@ increments_dta <- Obs %>%
   create_covariate_columns()
 
 
+increments_dta %>% pivot_longer( matches("cov"),  names_to = "covariate", values_to = "grad") %>% ggplot() + 
+  geom_point(aes(x=grad, y=deplacement, col = as.factor(etats_caches))) +
+  facet_wrap(~covariate) + ggtitle("covariate")
 
+# preparation du jeu de données incréments
+
+m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
+table(m1@cluster, increments_dta$etats_caches)
+parameters(m1)
+
+initialisation2.0(increments = increments_dta, K = 2)
 ## Y=increments_dta$deplacement
 ## Z = increments_dta[, c('cov1', 'cov2' ....)]
 

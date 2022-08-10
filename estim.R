@@ -1,3 +1,6 @@
+library(flexmix)
+
+
 ################################################################################
 ###                     Probabilités des apparitions                                                       
 ### Fonction calculant la probabilité des émissions, c'est à dire la probabilité 
@@ -149,7 +152,7 @@ backward_2.0 = function( A, B){
 estim_etatsconnus = function(increments, etats){
   Y=increments$deplacement 
   cov_index <- str_detect(colnames(increments), 'cov')
-  Z = increments_dta[, cov_index]
+  Z = increments[, cov_index]
   K <-  n_distinct(etats)
   etats_2n <- c(etats, etats)
   
@@ -189,13 +192,25 @@ estim_etatsconnus = function(increments, etats){
 ###
 ################################################################################
 
-initialisation2.0 = function(increments, K,  methode = 'kmeans'){
-  nbr_obs = nrow(increments)/2
-  if (methode == 'kmeans'){
-    Z <- matrix(increments$deplacement, nrow = nbr_obs)
-    km = kmeans(Z, K) 
-  }
-  A = km$cluster %>% 
+initialisation2.0 = function(increments, K){
+  ## create formula
+  cov_list <- str_extract(colnames(increments), pattern = "cov.[1234567890]?") %>% na.omit()
+  rhs <- paste0( c("-1", cov_list), collapse= " + ")
+  form <- paste0( "deplacement ~ ", rhs)
+  # fit regression mixture
+  m1 <- flexmix( formula = as.formula(form), k= K, data= increments)
+  coef_est <- parameters(m1)
+  
+  #format parameter
+  param <- lapply(1:K, function(k_){
+    list(nu = coef_est[1:J,k_],
+         vitesse = coef_est[J+1, k_],
+         beta = coef_est[1:J,k_] * coef_est[J+1, k_])
+  })
+  
+  
+
+  A = m1@cluster %>% 
     as_tibble() %>% 
     rename(P2= value) %>% 
     mutate(P1=lag(P2)) %>% 
@@ -208,8 +223,8 @@ initialisation2.0 = function(increments, K,  methode = 'kmeans'){
     dplyr::select(P1,P2,p) %>% 
     pivot_wider( names_from = P2, values_from = p ) %>% as.matrix()
 
-  
-  return(list(A= A, param = estim_etatsconnus(increments = increments, etats = km$cluster )))
+  PI = 1*(c(1:K)==m1@cluster[1])
+  return(list(A= A, param = param, PI = PI))
 }
 
 ################################################################################

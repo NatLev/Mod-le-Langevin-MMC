@@ -230,13 +230,31 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
   
   return(Observations)}
 
-Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, Vits, tps, loc0 = c(0,0), affichage = TRUE){
+Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, Vits, tps, loc0 = c(0,0), affichage = TRUE, epsilon = 0.5){
+  
+  minx = min(liste_cov[[1]]$x) + 4 *epsilon
+  miny = min(liste_cov[[1]]$y) + 4 *epsilon
+  maxx = max(liste_cov[[1]]$x) - 4 *epsilon
+  maxy = min(liste_cov[[1]]$y) - 4 *epsilon
   K = dim(theta)[2]
   J = length(liste_cov)
   nbr_obs = length(etats_caches) 
   simu <-  simLangevinMM(liste_theta[[ etats_caches[1] ]], Vits[etats_caches[1]], c(tps[1],tps[2]), loc0 = loc0, liste_cov, keep_grad = TRUE)
   for (t in 2:nbr_obs) {
     prov <- simLangevinMM(liste_theta[[ etats_caches[t] ]], Vits[etats_caches[t]], c(tps[t-1],tps[t]), loc0 = as.numeric(simu[t-1,1:2]), liste_cov, keep_grad = TRUE)
+    if(prov[2,1]<minx) {
+      prov[2,1]= minx + epsilon
+    }
+    if(prov[2,1]>maxx)  {
+      prov[2,1] = maxx - epsilon
+    }
+    if(prov[2,2]<miny)  {
+      prov[2,2] = miny + epsilon
+    }
+    if(prov[2,2]<minx)  {
+      prov[2,2] = maxy - epsilon
+    }
+    
     simu[t-1, 4:(2*J+3)] <-prov[1,4:(2*J+3)]
     simu[t, ] <- prov[2,]
   }
