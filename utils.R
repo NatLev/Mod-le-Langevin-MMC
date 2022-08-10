@@ -93,30 +93,3 @@ retourner = function(liste){
   return(liste_retournee)
 }
 
-
-
-################################################################################
-###                   Algorithme EM
-###
-### Paramètres : 
-### increments : dataframe contenant :
-###   
-### Lambda : liste contenant le modèle initial. 
-### Vitesses : liste des vitesses initiales selon les etats. 
-### G : nombre d iterations de l'EM. (Par défaut, 20).
-### moyenne :
-### 
-
-
-
-
-
-
-
-
-
-
-
-
-
-

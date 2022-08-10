@@ -27,12 +27,13 @@
 proba_emission = function(increments, param){
   K = length(param)
   cov_index <- str_detect(colnames(increments), "cov")
+  J = sum(cov_index)
   # Création de la matrice.
   B = matrix(0, ncol = K, nrow = nrow(increments)/2)
   for (k in 1:K){
     prov <- matrix(dnorm( increments$deplacement, 
                           mean = as.matrix(increments[, cov_index]) %*%
-                            matrix(param[[k]]$nu, nrow=2),
+                            matrix(param[[k]]$nu, nrow=J),
                           sd = param[[k]]$vitesse), ncol= 2) 
     B[,k] <- prov[,1]* prov[,2]    
   }
@@ -87,6 +88,10 @@ backward_2.0 = function( A, B){
   beta_norm = rep(1, nbr_obs)
   # Création de la matrice initialisée (dernière ligne égale à 1).
   bet = matrix(1, ncol = K, nrow = nbr_obs)
+  
+  # On divise par la somme de la première ligne.
+  beta_norm[1] = sum(bet[nbr_obs,])
+  bet[nbr_obs,] = bet[nbr_obs,]/beta_norm[1]
   
   for (t in (nbr_obs-1):1){
     b = A %*% (B[t+1,] * bet[t+1,])
@@ -292,10 +297,11 @@ Viterbi = function(A,B,PI){
 ###       $Vitesses : liste des vitesses de chaque etat cache.
 ################################################################################
 
-EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
+EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
+  browser()
   compteur = 0
   # On gère la dimension du modèle.
-  nbr_obs = dim(increments_dta)[1]/2
+  nbr_obs = dim(increments)[1]/2
   
   # Extraction des paramètres du modèle.
   A = Lambda$A
@@ -308,7 +314,7 @@ EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
   somme_A = matrix(0,K,K)
   
   # Extraction de la matrice C.
-  C = as.matrix(increments_dta[,stringr::str_detect(colnames(increments_dta),"cov")])
+  C = as.matrix(increments[,stringr::str_detect(colnames(increments),"cov")])
   J = dim(C)[2]
   
   while (compteur < G){
@@ -374,24 +380,46 @@ EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
     # On met à jour la matrice des probabilités des émissions.
     B = proba_emission(increments, Params)
     
-    num = list()
-    vits = numeric(K)
-    for (k in 1:K){
-      num = c(num, Params[[k]]$nu)
-      vits[k] = Params[[k]]$vitesse
-      }
-    theta_nv = matrix(num, nrow = J, ncol = K, )
-    
-    print(A)
-    print(theta_nv)
-    
     # On met à jour le compteur.
     compteur = compteur + 1
-  }
-  return(list(A = A, param = Params, Vitesses = vits, gamma=gam, xi = Xi))
-  }
+   } 
+  num = list()
+  vits = numeric(K)
+  for (k in 1:K){
+    num = c(num, Params[[k]]$nu)
+    vits[k] = Params[[k]]$vitesse
+    print(vits[k])
+    }
+  theta_nv = matrix(num, nrow = J, ncol = K, )
+  
+  print(A)
+  print(theta_nv)
+    
+  # On gère la moyenne si nécessaire.
+  if (moyenne){return(list(A = somme_A/G,
+                           Nu = somme_theta/G,
+                           Vitesses = sqrt(Vits)))} else{return(list(A = A, 
+                                                                     Nu = theta_nv, 
+                                                                     Vitesses = sqrt(Vits)))}
+}
+E = EM_Langevin(increments_dta, Lambda, Vc(0.4,0.4), G = 10)
+E
 
 
+etats_forts = function(B){
+  l = nrow(B)
+  liste_etats = numeric(l)
+  for (t in 1:l){
+    if (B[t,1] > B[t,2]){
+      liste_etats[t] = 1
+    } else if (B[t,1] < B[t,2]){
+        liste_etats[t] = 2
+        }
+  }
+  return(liste_etats)
+}
+Q_test = etats_forts(Lambda$B)
+etats_caches == Q_test
 
 
 

@@ -4,9 +4,9 @@ source('simu.R')
 source('estim.R')
 
 
-nbr_obs = 1000      
+nbr_obs = 100      
 K = 2       
-J = 2        
+J = 1        
 dimension = 2  
 vit = 0.4   ### C est gamma et pas gamma2 !!         
 #PI = c(.5,.3,.2)    
@@ -40,13 +40,6 @@ for (i in 1:J){
                                  raster_like = TRUE)
 }
 
-liste_cov_2 = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
-                                               resol = resol,
-                                               mean_function = mean_function,
-                                               raster_like = TRUE)})
-
-
-
 
 # Creation de la suite des etats caches.
 
@@ -62,6 +55,7 @@ A = matrix(c(0.95,0.05,0.1,0.9),
 etats_caches = CM_generateur( A, nbr_obs)
 
 # Le parametre de lien. 
+
 
 
 beta_sim <-BETA(K,J) 
@@ -115,6 +109,8 @@ E = EM_Langevin(increments = increments_dta,
                 moyenne = FALSE)
 print(list(E[[1]],E[[2]],E[[3]]))
 theta
+E
+
 
 
 
