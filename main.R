@@ -39,9 +39,10 @@ p1
 
 nbr_obs = 200      
 K = 2       
-J = 1        
+J = 2        
 dimension = 2  
-vit = 1   ### C est gamma et pas gamma2 !!         
+vit = 1 
+
 #PI = c(.5,.3,.2)    
 PI = c(.6,0.4)
 
@@ -84,8 +85,8 @@ etats_caches = CM_generateur( A, nbr_obs)
 
 
 
-beta_sim <-BETA(K = K, J=J)  ## une colonne par etats cachés, une ligne par covariable
-beta_sim <- matrix(c(3,-3, -3,3), ncol = K, nrow = J)
+#beta_sim <-BETA(K = K, J=J)  ## une colonne par etats cachés, une ligne par covariable
+beta_sim <- matrix(c(5, 5, 3,5), ncol = K, nrow = J)
 theta = Nu(beta_sim, vit)
 theta
 
@@ -122,31 +123,26 @@ m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
 table(m1@cluster, increments_dta$etats_caches)
 parameters(m1)
 
-initialisation2.0(increments = increments_dta, K = 2)
-## Y=increments_dta$deplacement
-## Z = increments_dta[, c('cov1', 'cov2' ....)]
+Init = initialisation2.0(increments = increments_dta, K = 2)
 
-Init = initialisation2.0(increments_dta, K,  methode = 'kmeans')
+#Init = initialisation2.0(increments_dta, K,  methode = 'kmeans')
   
-A_init = Init$A; param_init = Init$param;
+A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
 
 theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_caches)
 
 
 
-Lambda = list('A' = A,
+Lambda = list('A' = A_init,
               'B' = proba_emission(increments = increments_dta, param = param_init),
-              'PI' = PI)
+              'PI' = PI_init)
 #Lambda$B
 
 E = EM_Langevin(increments = increments_dta, 
                 Lambda = Lambda, 
-                Vitesses = c(0.4,0.4),
                 G = 10, 
                 moyenne = FALSE)
-print(list(E[[1]],E[[2]],E[[3]]))
 theta
-E
 
 
 

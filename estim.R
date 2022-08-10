@@ -224,7 +224,7 @@ initialisation2.0 = function(increments, K){
     pivot_wider( names_from = P2, values_from = p ) %>% as.matrix()
 
   PI = 1*(c(1:K)==m1@cluster[1])
-  return(list(A= A, param = param, PI = PI))
+  return(list(A = A, param = param, PI = PI))
 }
 
 ################################################################################
@@ -313,7 +313,6 @@ Viterbi = function(A,B,PI){
 ################################################################################
 
 EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
-  browser()
   compteur = 0
   # On gère la dimension du modèle.
   nbr_obs = dim(increments)[1]/2
@@ -394,21 +393,22 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     
     # On met à jour la matrice des probabilités des émissions.
     B = proba_emission(increments, Params)
-    
+    num = list()
+    vits = numeric(K)
+    for (k in 1:K){
+      num = c(num, Params[[k]]$nu)
+      vits[k] = Params[[k]]$vitesse
+      }
+    theta_nv = matrix(num, nrow = J, ncol = K, )
+    print(A)
+    print(theta_nv)
+    print(vits)
     # On met à jour le compteur.
     compteur = compteur + 1
    } 
-  num = list()
-  vits = numeric(K)
-  for (k in 1:K){
-    num = c(num, Params[[k]]$nu)
-    vits[k] = Params[[k]]$vitesse
-    print(vits[k])
-    }
-  theta_nv = matrix(num, nrow = J, ncol = K, )
   
-  print(A)
-  print(theta_nv)
+  
+  
     
   # On gère la moyenne si nécessaire.
   if (moyenne){return(list(A = somme_A/G,
@@ -417,24 +417,24 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
                                                                      Nu = theta_nv, 
                                                                      Vitesses = sqrt(Vits)))}
 }
-E = EM_Langevin(increments_dta, Lambda, Vc(0.4,0.4), G = 10)
-E
-
-
-etats_forts = function(B){
-  l = nrow(B)
-  liste_etats = numeric(l)
-  for (t in 1:l){
-    if (B[t,1] > B[t,2]){
-      liste_etats[t] = 1
-    } else if (B[t,1] < B[t,2]){
-        liste_etats[t] = 2
-        }
-  }
-  return(liste_etats)
-}
-Q_test = etats_forts(Lambda$B)
-etats_caches == Q_test
-
+# E = EM_Langevin(increments_dta, Lambda, Vc(0.4,0.4), G = 10)
+# E
+# 
+# 
+# etats_forts = function(B){
+#   l = nrow(B)
+#   liste_etats = numeric(l)
+#   for (t in 1:l){
+#     if (B[t,1] > B[t,2]){
+#       liste_etats[t] = 1
+#     } else if (B[t,1] < B[t,2]){
+#         liste_etats[t] = 2
+#         }
+#   }
+#   return(liste_etats)
+# }
+# Q_test = etats_forts(Lambda$B)
+# etats_caches == Q_test
+# 
 
 
