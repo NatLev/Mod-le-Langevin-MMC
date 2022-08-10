@@ -925,3 +925,120 @@ print(alp)
 ^bet = backward_2.0(Lambda$A, Lambda$B)[[1]]
 gam = alp * bet
 for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/sum(gam[t,])}
+
+
+
+EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10,
+                               moyenne = FALSE, dimension = 2){
+  
+  compteur = 0
+  
+  # On gère la dimension du modèle.
+  
+  if (dimension == 2){
+    Z = cbind( obs$Z1, obs$Z2)
+    dimension = 2
+  }
+  
+  else {Z = obs$Z}
+  nbr_obs = dim(Z)[1] - 1
+  
+  # Extraction des paramètres du modèle.
+  A = Lambda$A
+  B = Lambda$B[1:nbr_obs,]
+  PI = Lambda$PI
+  
+  # On gère l'option moyenne si besoin.
+  somme_theta = matrix(0,J,K)
+  somme_A = matrix(0,K,K)
+  
+  
+  # # Construction de la matrice C avec la division temporelle.
+  # C_temp = C
+  # for (i in 1:nbr_obs){
+  #   C_temp[i] = C_temp[i]/sqrt(delta[i])
+  #   C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
+  # }
+  while (compteur < G){
+    print(paste('Tour',compteur))
+    ### EXPECTATION.
+    
+    # GAMMA.
+    alp = forward_2.0( A, B, PI)
+    bet = backward_2.0( A, B)
+    
+    gam = alp * bet
+    for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
+    print(gam)
+    
+    
+    # On gère la potentiel présence de NA dans la matrice gam.
+    if (any(is.na(gam))){
+      warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
+      if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
+      else {return(list(A,theta_nv,sqrt(vit)))}
+    }
+    
+    
+    ## CALCUL DE A.
+    
+    Xi = array(1,dim = c( K, K, nbr_obs-1),)
+    for (t in 1:(nbr_obs-2)){
+      Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
+    }
+    
+    # Je fais la somme des Xi pour t allant de 1 à T-1.
+    somme_Xi = matrix(0,K,K)
+    for (t in 1:(nbr_obs-1)){somme_Xi = somme_Xi + Xi[,,t]}
+    
+    # Je fais la somme des gamma pour t allant de 1 à T-1.
+    somme_gam = matrix(0, nrow = K, ncol = K, byrow = TRUE)
+    for (k in 1:K){
+      sg = sum(gam[1:nbr_obs-1,k])
+      #print(matrix(sg, nrow= 1, ncol = K, byrow = TRUE))
+      somme_gam[k,] = matrix(1/sg, nrow= 1, ncol = K, byrow = TRUE)
+    }
+    
+    
+    # On obtient l'estimateur de la matrice A.
+    A = format_mat(somme_Xi * somme_gam)
+    somme_A = somme_A + A
+    
+    
+    # THETA.
+    theta_nv = matrix(1,J,K)
+    Vits = c()
+    print(length(c(gam[,k],gam[,k])))
+    for (k in 1:K){
+      # On gère les deux cas différents selon la dimension.
+      if (dimension == 2){
+        model = lm(c(Z[1:nbr_obs,1],Z[1:nbr_obs,2]) ~ C, weights= c(gam[,k],gam[,k]))
+        
+      }
+      else {
+        model = lm(Z ~ C, weights=gam[,k])
+      }
+      
+      # On récupère les coefficients.
+      Vits = c(Vits, summary(model)$sigma)
+      theta_nv[,k] = coef(model)[2:(J+1)]
+    }
+    # On gère la potentielle moyenne à calculer.
+    somme_theta = somme_theta + theta_nv
+    print(theta_nv)
+    # On met à jour la matrice des probabilités des émissions.
+    B = proba_emission(obs, C, theta_nv, delta, Vits)
+    #browser()
+    # On met à jour le compteur.
+    compteur = compteur + 1
+  }
+  
+  # On gère la moyenne si nécessaire.
+  if (moyenne){return(list(A = somme_A/G,
+                           Nu = somme_theta/G,
+                           Vitesses = sqrt(Vits)))} else{return(list(A = A, 
+                                                                     Nu = theta_nv, 
+                                                                     Vitesses = sqrt(Vits)))}
+}
+
+

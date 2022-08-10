@@ -1,26 +1,28 @@
 ################################################################################
-###                     Probabilités des apparitions                         ###                               
+###                     Probabilités des apparitions                                                       
+### Fonction calculant la probabilité des émissions, c'est à dire la probabilité 
+### de chaque "partie" du déplacement de l'animal. Il prend en compte la 
+### dimension 1 et 2.
+###
+### increments : dataframe contenant : 
+###     $t : les instants où les observations ont lieu.
+###     $grad_ci_x/grad_ci_y : gradient de la covariable i selon x ou y. 
+###     $etats_caches : la suite des etats caches ayant servi a la simulation.
+###     $delta_t : le pas de temps. 
+###     $deplacement : deplacement selon une direction (x ou y) qui est precisee
+###                    dans la variable suivante.
+###     $dimension : variable precisant si le deplacement associe se fait selon
+###                  x ou y. 
+###     $cov.i : valeur du gradient après la division par deux fois le pas de 
+###              temps.
+### param : liste de contenant autant de liste qu'il y a d etats caches 
+###          differents. Pour chaque etat, on a : 
+###     $nu : vecteur contenant les coefficients beta associes a l etat. 
+###     $vitesse : valeur de la vitesse (gamma) du processus dans cet etat. 
+### 
+### Renvoie une matrice avec autant de lignes qu'il y a de déplacements et avec
+### autant de colonne qu'il y a d'etats caches differents. 
 ################################################################################
-# Fonction calculant la probabilité des émissions, c'est à dire la probabilité 
-# de chaque "partie" du déplacement de l'animal. Il prend en compte la 
-# dimension 1 et 2.
-
-# Paramètres :
-#         - obs, le data.frame contenant les informations sur le déplacement.
-#         - C, la matrice des covariables environnementales.
-## C est utilisé juste au dessus pouy Beta * Vit
-#         - theta, le paramètre de lien.
-#         - Delta, la suite des pas de temps.
-#         - vit, la "vitesse" du processus aléatoire.
-#         - dimension, la dimension considérée, elle est de base égale à 2. 
-#
-# Retourne un dataframe avec deux composantes :
-#         - B, la matrice des probabilités des déplacements, T lignes, K 
-#           colonnes.
-#
-# Remarques :
-#         - Seules les dimensions 1 et 2 sont prises en compte ici.
-
 
 proba_emission = function(increments, param){
   K = length(param)
@@ -28,16 +30,18 @@ proba_emission = function(increments, param){
   # Création de la matrice.
   B = matrix(0, ncol = K, nrow = nrow(increments)/2)
   for (k in 1:K){
-    prov <- matrix(dnorm( increments$deplacement, mean=  as.matrix(increments[, cov_index]) %*% matrix(param[[k]]$nu, nrow=2), sd = param[[k]]$vitesse), ncol= 2) 
+    prov <- matrix(dnorm( increments$deplacement, 
+                          mean = as.matrix(increments[, cov_index]) %*%
+                            matrix(param[[k]]$nu, nrow=2),
+                          sd = param[[k]]$vitesse), ncol= 2) 
     B[,k] <- prov[,1]* prov[,2]    
   }
   return(B)
 }
 
-
-
 ################################################################################
 ###                       Procedures forward et backward                                
+### Procedure Forward.
 ### A : matrice de transition.
 ### B : matrice des probabilités d emission sous le modele.
 ### PI : vecteur des probabilites initiales des etats.
@@ -45,6 +49,15 @@ proba_emission = function(increments, param){
 ### La fonction forward2.0 applique la procedure forward au modele. Elle renvoie
 ### une matrice contenant les probabilites. La matrice a nbr_obs lignes et 
 ### autant de colonnes qu il y a d etats.
+###
+### Procedure Backward.
+### A : matrice de transition.
+### B : matrice des probabilités d emission sous le modele.
+###
+### La fonction backward2.0 applique la procedure backward au modele. Elle 
+### renvoie une matrice contenant les probabilites. La matrice a nbr_obs lignes  
+### et autant de colonnes qu il y a d etats.
+###
 ################################################################################
 
 forward_2.0 = function( A, B, PI){
@@ -105,6 +118,29 @@ backward_2.0 = function( A, B){
 ## Etats la liste des etats
 ################################################################################
 
+################################################################################
+###         Estimation des paramètres selon une suite d'etats connue
+###
+### increments : dataframe contenant : 
+###     $t : les instants où les observations ont lieu.
+###     $grad_ci_x/grad_ci_y : gradient de la covariable i selon x ou y. 
+###     $etats_caches : la suite des etats caches ayant servi a la simulation.
+###     $delta_t : le pas de temps. 
+###     $deplacement : deplacement selon une direction (x ou y) qui est precisee
+###                    dans la variable suivante.
+###     $dimension : variable precisant si le deplacement associe se fait selon
+###                  x ou y. 
+###     $cov.i : valeur du gradient après la division par deux fois le pas de 
+###              temps.
+### etats : suite des etats supposes. 
+###
+### Renvoie une liste contenant autant de liste qu'il y a d etats caches 
+### differents. La liste associee a chaque etat contient :
+###     $nu : vecteur des coefficients associes a l etat.
+###     $vitesse : 
+###
+################################################################################
+
 estim_etatsconnus = function(increments, etats){
   Y=increments$deplacement 
   cov_index <- str_detect(colnames(increments), 'cov')
@@ -123,6 +159,30 @@ estim_etatsconnus = function(increments, etats){
   return(estim_list)
 }
 
+################################################################################
+###                    Initialisation des parametres 
+###
+### increments : dataframe contenant : 
+###     $t : les instants où les observations ont lieu.
+###     $grad_ci_x/grad_ci_y : gradient de la covariable i selon x ou y. 
+###     $etats_caches : la suite des etats caches ayant servi a la simulation.
+###     $delta_t : le pas de temps. 
+###     $deplacement : deplacement selon une direction (x ou y) qui est precisee
+###                    dans la variable suivante.
+###     $dimension : variable precisant si le deplacement associe se fait selon
+###                  x ou y. 
+###     $cov.i : valeur du gradient après la division par deux fois le pas de 
+###              temps.
+### K : nombre d etats differents.
+### methode : str representant le nom d une methode. Les choix sont : 
+###     - 'kmeans' : methode des kmeans.
+### 
+### Renvoie une liste contenant : 
+###     $A : la matrice de transition prédite. 
+###     $param : appel de la fonction estim_etatsconnus avec comme suite d etats 
+###              la suite predite par la methode. 
+###
+################################################################################
 
 initialisation2.0 = function(increments, K,  methode = 'kmeans'){
   nbr_obs = nrow(increments)/2
@@ -147,8 +207,6 @@ initialisation2.0 = function(increments, K,  methode = 'kmeans'){
   return(list(A= A, param = estim_etatsconnus(increments = increments, etats = km$cluster )))
 }
 
-#initialisation2.0(Obs, K, C, incr)
-
 ################################################################################
 ###                       Algorithme de Viterbi                                
 ### A : matrice de transition.
@@ -159,10 +217,6 @@ initialisation2.0 = function(increments, K,  methode = 'kmeans'){
 ### caches la plus probable selon le modele. La suite est renvoyee sous la forme
 ### d une liste. 
 ################################################################################
-
-
-
-
 
 Viterbi = function(A,B,PI){
   nbr_obs = dim(B)[1]
@@ -211,20 +265,26 @@ Viterbi = function(A,B,PI){
 ################################################################################
 ###                            Algorithme EM                     
 ###
-### obs : dataframe de taille nbr_obs-1 avec les déplacements selon les deux 
-###       variables rangés dans chaque colonne. Il n'y a pas de division par 
-###       sqrt(incr) ici. 
+### increments : dataframe contenant : 
+###     $t : les instants où les observations ont lieu.
+###     $grad_ci_x/grad_ci_y : gradient de la covariable i selon x ou y. 
+###     $etats_caches : la suite des etats caches ayant servi a la simulation.
+###     $delta_t : le pas de temps. 
+###     $deplacement : deplacement selon une direction (x ou y) qui est precisee
+###                    dans la variable suivante.
+###     $dimension : variable precisant si le deplacement associe se fait selon
+###                  x ou y. 
+###     $cov.i : valeur du gradient après la division par deux fois le pas de 
+###              temps.
 ### Lambda : liste à trois elements contenant les paramètres du modèle initial. 
 ###     $A : la matrice de transition initiale.
 ###     $B : la matrice de probabilité d'émission initiale. 
 ###     $PI : Vecteur contenant les probabilités initiales de commencer dans 
 ###           chaque état.
-### delta : liste des pas de temps de taille nbr_obs-1.  
-### vit : liste des vitesses initiales pour chaque etat. 
+### Vitesses : liste des vitesses initiales pour chaque etat. 
 ### G : Nombre d iteration de l'EM (par défaut 20).
 ### moyenne : booléen (par défaut FALSE) régissant l'utilisation d une moyenne
 ###           ou non.
-### dimension : nombre de dimension (par défaut 2).
 ### 
 ### La fonction renvoie une liste : 
 ###       $A : matrice de transition des etats caches. 
@@ -232,121 +292,6 @@ Viterbi = function(A,B,PI){
 ###       $Vitesses : liste des vitesses de chaque etat cache.
 ################################################################################
 
-
-
-
-# EM_Langevin_modif_A = function(obs, Lambda, delta, vit, C, G = 10, 
-#                                moyenne = FALSE, dimension = 2){
-#   
-#   compteur = 0
-#   
-#   # On gère la dimension du modèle. 
-# 
-#   if (dimension == 2){
-#     Z = cbind( obs$Z1, obs$Z2)
-#     dimension = 2
-#   }
-#   
-#   else {Z = obs$Z}
-#   nbr_obs = dim(Z)[1] - 1
-#   
-#   # Extraction des paramètres du modèle.
-#   A = Lambda$A
-#   B = Lambda$B[1:nbr_obs,]
-#   PI = Lambda$PI
-#   
-#   # On gère l'option moyenne si besoin.
-#   somme_theta = matrix(0,J,K)
-#   somme_A = matrix(0,K,K)
-#   
-#   
-#   # # Construction de la matrice C avec la division temporelle.
-#   # C_temp = C
-#   # for (i in 1:nbr_obs){
-#   #   C_temp[i] = C_temp[i]/sqrt(delta[i])
-#   #   C_temp[nbr_obs + i] = C_temp[nbr_obs+i]/sqrt(delta[i])
-#   # }
-#   
-#     print(paste('Tour',compteur))
-#     ### EXPECTATION.
-#     
-#     # GAMMA.
-#     alp = forward_2.0( A, B, PI)
-#     bet = backward_2.0( A, B)
-#     
-#     gam = alp * bet
-#     for (t in 1:dim(gam)[1]){gam[t,] = gam[t,]/(sum(gam[t,]))}
-#     print(gam)
-#     
-#     
-#     # On gère la potentiel présence de NA dans la matrice gam.
-#     if (any(is.na(gam))){
-#       warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
-#       if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
-#       else {return(list(A,theta_nv,sqrt(vit)))}
-#     }
-#     
-#     
-#     ## CALCUL DE A.
-#     
-#     Xi = array(1,dim = c( K, K, nbr_obs-1),)
-#     for (t in 1:(nbr_obs-2)){
-#       Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
-#     }
-#     
-#     # Je fais la somme des Xi pour t allant de 1 à T-1.
-#     somme_Xi = matrix(0,K,K)
-#     for (t in 1:(nbr_obs-1)){somme_Xi = somme_Xi + Xi[,,t]}
-#     
-#     # Je fais la somme des gamma pour t allant de 1 à T-1.
-#     somme_gam = matrix(0, nrow = K, ncol = K, byrow = TRUE)
-#     for (k in 1:K){
-#       sg = sum(gam[1:nbr_obs-1,k])
-#       #print(matrix(sg, nrow= 1, ncol = K, byrow = TRUE))
-#       somme_gam[k,] = matrix(1/sg, nrow= 1, ncol = K, byrow = TRUE)
-#     }
-#     
-#     
-#     # On obtient l'estimateur de la matrice A.
-#     A = format_mat(somme_Xi * somme_gam)
-#     somme_A = somme_A + A
-#     
-#     
-#     # THETA.
-#     theta_nv = matrix(1,J,K)
-#     Vits = c()
-#     print(length(c(gam[,k],gam[,k])))
-#     for (k in 1:K){
-#       # On gère les deux cas différents selon la dimension.
-#       if (dimension == 2){
-#         model = lm(c(Z[1:nbr_obs,1],Z[1:nbr_obs,2]) ~ C, weights= c(gam[,k],gam[,k]))
-#         
-#       }
-#       else {
-#         model = lm(Z ~ C, weights=gam[,k])
-#       }
-#       
-#       # On récupère les coefficients.
-#       Vits = c(Vits, summary(model)$sigma)
-#       theta_nv[,k] = coef(model)[2:(J+1)]
-#     }
-#     # On gère la potentielle moyenne à calculer.
-#     somme_theta = somme_theta + theta_nv
-#     print(theta_nv)
-#     # On met à jour la matrice des probabilités des émissions.
-#     B = proba_emission(obs, C, theta_nv, delta, Vits)
-#     #browser()
-#     # On met à jour le compteur.
-#     compteur = compteur + 1
-#   }
-#   
-#   # On gère la moyenne si nécessaire.
-#   if (moyenne){return(list(A = somme_A/G,Nu = somme_theta/G,
-#                            Vitesses = sqrt(Vits)))}
-#   else {return(list(A = A, Nu = theta_nv, Vitesses = sqrt(Vits)))}
-# }
-
-library(stringr)
 EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
   compteur = 0
   # On gère la dimension du modèle.
@@ -390,19 +335,12 @@ EM_Langevin = function(increments, Lambda, Vitesses, G = 10, moyenne = FALSE){
     
     ## CALCUL DE A.
     
-    # Formule Bilmes.
-    # Xi = array(1,dim = c( K, K, nbr_obs-1),)
-    # for (t in 1:(nbr_obs-2)){
-    #   Xi[,,t] = diag(gam[t,] * (1/bet[t,])) %*% A %*% diag(B[t+1,] * bet[t+1,])
-    # }
-    # 
-    # Formule Rabiner.
     Xi = array(1,dim = c( K, K, nbr_obs-1),)
     for (t in 1:(nbr_obs-2)){
       Xi[,,t] = diag(alp[t,]) %*% A %*% diag(B[t+1,] * bet[t+1,])
       Xi[,,t] = Xi[,,t]/sum(Xi[,,t])
     }
-    # 
+    
     # Je fais la somme des Xi pour t allant de 1 à T-1.
     somme_Xi = matrix(0,K,K)
     for (t in 1:(nbr_obs-1)){

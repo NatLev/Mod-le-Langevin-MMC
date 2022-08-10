@@ -6,14 +6,13 @@ library(abind)
 library(dplyr)
 library(RandomFields)
 library(RandomFieldsUtils)
-library(markovchain)
 library(tidyverse)
 library(RColorBrewer)
 library(MASS)
 library(mvtnorm)
 library(psych)
 library(FactoMineR)
-
+library(stringr)
 
 
 ################################################################################

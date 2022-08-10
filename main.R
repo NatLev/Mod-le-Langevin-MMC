@@ -40,10 +40,13 @@ for (i in 1:J){
                                  raster_like = TRUE)
 }
 
-# liste_cov_2 = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
-#                                                resol = resol,
-#                                                mean_function = mean_function,
-#                                                raster_like = TRUE)})
+liste_cov_2 = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
+                                               resol = resol,
+                                               mean_function = mean_function,
+                                               raster_like = TRUE)})
+
+
+
 
 # Creation de la suite des etats caches.
 
