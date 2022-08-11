@@ -382,7 +382,6 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     
     # THETA.
     theta_nv = matrix(1,J,K)
-    Vits = numeric(K)
     Params = lapply(1:K, function(k){
       model = lm(increments$deplacement ~ -1 + C, weights = c(gam[,k],gam[,k]))
       return(list(nu = coef(model), vitesse = summary(model)$sigma))
@@ -393,16 +392,13 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     
     # On met à jour la matrice des probabilités des émissions.
     B = proba_emission(increments, Params)
-    num = list()
-    vits = numeric(K)
-    for (k in 1:K){
-      num = c(num, Params[[k]]$nu)
-      vits[k] = Params[[k]]$vitesse
-      }
-    theta_nv = matrix(num, nrow = J, ncol = K, )
+    
+    Aff = AffParams(Params)
+    nu_nv = Aff$nu
+    vit_nv = Aff$vitesses
     print(A)
-    print(theta_nv)
-    print(vits)
+    print(nu_nv)
+    print(vit_nv)
     # On met à jour le compteur.
     compteur = compteur + 1
    } 
@@ -414,8 +410,8 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
   if (moyenne){return(list(A = somme_A/G,
                            Nu = somme_theta/G,
                            Vitesses = sqrt(Vits)))} else{return(list(A = A, 
-                                                                     Nu = theta_nv, 
-                                                                     Vitesses = sqrt(Vits)))}
+                                                                     Nu = nu_nv, 
+                                                                     Vitesses = vit_nv))}
 }
 # E = EM_Langevin(increments_dta, Lambda, Vc(0.4,0.4), G = 10)
 # E

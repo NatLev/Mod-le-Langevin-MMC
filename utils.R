@@ -93,3 +93,18 @@ retourner = function(liste){
   return(liste_retournee)
 }
 
+ret = function(nu){return(cbind(nu[,2], nu[,1]))}
+norme = function(mat){return(tr(mat %*% aperm(mat)))}
+AffParams = function(param){
+  K = length(param)
+  J = length(param[[1]]$nu)
+  nu = c()
+  vitesses = numeric(K)
+  for (k in 1:K){
+    nu = c(nu, as.numeric(param[[k]]$nu))
+    vitesses[k] = param[[k]]$vitesse
+  }
+  return(list(nu = matrix(nu, nrow = J, ncol = K),
+              vitesses = vitesses))
+}
+

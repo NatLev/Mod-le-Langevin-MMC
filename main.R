@@ -37,14 +37,35 @@ p1
 # parameters simu ---------------------------------------------------------
 
 
-nbr_obs = 200      
+nbr_obs = 5000      
 K = 2       
 J = 2        
 dimension = 2  
 vit = 1 
 
+# Creation de la suite des instants.
+temps = function(pdt, nbr_obs, N_ano){
+  N = nbr_obs + N_ano
+  tps_final = N * pdt 
+  instants = seq(1, tps_final, length.out = N)
+  anomalies = sample(1:(nbr_obs + ano),ano)
+  tps = instants[-anomalies]
+  return(tps = tps)
+}
+pdt = 0.08                  # Pas de temps de base.
+ano = round(nbr_obs/100*5) # nombre d'anomalies.
+tps = temps(pdt, nbr_obs, ano)
+length(tps)
+
+# tps_final = 30
+# ano = round(nbr_obs/100*5) # nombre d'anomalies.
+# 
+# instants = seq(1, tps_final, length.out = (nbr_obs + ano))
+# anomalies = sample(1:(nbr_obs + ano),ano)
+# tps = instants[-anomalies]
+
 #PI = c(.5,.3,.2)    
-PI = c(.6,0.4)
+#PI = c(.6,0.4)
 
 # Paramètre de création des covariables. 
 set.seed(1)
@@ -56,13 +77,6 @@ mean_function <- function(z){# mean function
 
 
 
-# Creation de la suite des instants.
-tps_final = 30
-ano = round(nbr_obs/100*5) # nombre d'anomalies.
-
-instants = seq(1, tps_final, length.out = (nbr_obs + ano))
-anomalies = sample(1:(nbr_obs + ano),ano)
-tps = instants[-anomalies]
 
 # Creation de la liste des covariables via Rhabit.
 
@@ -86,9 +100,10 @@ etats_caches = CM_generateur( A, nbr_obs)
 
 
 #beta_sim <-BETA(K = K, J=J)  ## une colonne par etats cachés, une ligne par covariable
-beta_sim <- matrix(c(5, 5, 3,5), ncol = K, nrow = J)
+beta_sim <- matrix(c(3.5, -2.5, -3.5, 2.5), ncol = K, nrow = J)
 theta = Nu(beta_sim, vit)
 theta
+
 
 # Simulation des observations en utilisant Rhabit. 
 
@@ -142,7 +157,23 @@ E = EM_Langevin(increments = increments_dta,
                 Lambda = Lambda, 
                 G = 10, 
                 moyenne = FALSE)
-theta
+
+
+Aff = AffParams(param_init)
+nu_flexmix = Aff$nu
+nu_EM = E$Nu
+
+
+Mat_EM = theta - (nu_EM)
+Mat_flexmix = theta - (nu_flexmix)
+Mat_EM_r = theta - ret(nu_EM)
+Mat_flexmix_r = theta - ret(nu_flexmix)
+
+norme(Mat_EM)
+norme(Mat_flexmix)
+norme(Mat_EM_r)
+norme(Mat_flexmix_r)
+
 
 
 
