@@ -4,13 +4,16 @@ source('simu.R')
 source('estim.R')
 
 
-# covariate generation ----------------------------------------------------
+# # covariate generation ----------------------------------------------------
+# 
+# 
+# liste_cov = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
+#                                                           resol = resol,
+#                                                           mean_function = mean_function,
+#                                                           raster_like = TRUE)})
+# save(list = "liste_cov", file = "lise_cov_save.RData")
+load("lise_cov_save.RData")
 
-
-liste_cov = lapply(1:J, function(j){Rhabit::simSpatialCov(lim, nu, rho, sigma2,
-                                                          resol = resol,
-                                                          mean_function = mean_function,
-                                                          raster_like = TRUE)})
 
 ### Options graphiques
 ggopts <- theme_light()+theme(text = element_text(size = 10),
@@ -37,25 +40,16 @@ p1
 # parameters simu ---------------------------------------------------------
 
 
-nbr_obs = 5000      
+nbr_obs = 500      
 K = 2       
 J = 2        
 dimension = 2  
 vit = 1 
 
 # Creation de la suite des instants.
-temps = function(pdt, nbr_obs, N_ano){
-  N = nbr_obs + N_ano
-  tps_final = N * pdt 
-  instants = seq(1, tps_final, length.out = N)
-  anomalies = sample(1:(nbr_obs + ano),ano)
-  tps = instants[-anomalies]
-  return(tps = tps)
-}
-pdt = 0.08                  # Pas de temps de base.
+pdt = 0.1                  # Pas de temps de base.
 ano = round(nbr_obs/100*5) # nombre d'anomalies.
 tps = temps(pdt, nbr_obs, ano)
-length(tps)
 
 # tps_final = 30
 # ano = round(nbr_obs/100*5) # nombre d'anomalies.
@@ -100,7 +94,9 @@ etats_caches = CM_generateur( A, nbr_obs)
 
 
 #beta_sim <-BETA(K = K, J=J)  ## une colonne par etats cachés, une ligne par covariable
-beta_sim <- matrix(c(3.5, -2.5, -3.5, 2.5), ncol = K, nrow = J)
+v1 = 5
+v2 = -5
+beta_sim <- matrix(c(v1, -v1, v2, -v2), ncol = K, nrow = J)
 theta = Nu(beta_sim, vit)
 theta
 
@@ -112,7 +108,9 @@ Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_ca
                                 Vits = c(vit,vit), tps) %>% 
   rowid_to_column()
 
+
 p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
+
 
 
 increments_dta <- Obs %>% 
@@ -134,28 +132,27 @@ increments_dta %>% pivot_longer( matches("cov"),  names_to = "covariate", values
 
 # preparation du jeu de données incréments
 
+Generation(nbr_obs, pdt, A, liste_cov, theta)
+
+
 m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
 table(m1@cluster, increments_dta$etats_caches)
 parameters(m1)
 
 Init = initialisation2.0(increments = increments_dta, K = 2)
-
-#Init = initialisation2.0(increments_dta, K,  methode = 'kmeans')
-  
 A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
 
 theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_caches)
 
+Relab = relabel(A_init, param_init, PI_init)
 
-
-Lambda = list('A' = A_init,
-              'B' = proba_emission(increments = increments_dta, param = param_init),
-              'PI' = PI_init)
-#Lambda$B
+Lambda = list('A' = Relab$A,
+              'param' = Relab$param,
+              'PI' = Relab$PI)
 
 E = EM_Langevin(increments = increments_dta, 
                 Lambda = Lambda, 
-                G = 10, 
+                G = 7, 
                 moyenne = FALSE)
 
 
@@ -174,7 +171,10 @@ norme(Mat_flexmix)
 norme(Mat_EM_r)
 norme(Mat_flexmix_r)
 
-
-
-
-
+#Pour x :
+## Pour k=1 :
+k = 2
+flexmix_y = m1@posterior[1]$scaled[500:998,k]
+m1@cluster[1:499]
+Gam = E$gam
+plot(flexmix_x, Gam)

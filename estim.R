@@ -209,7 +209,7 @@ initialisation2.0 = function(increments, K){
   })
   
   
-
+  
   A = m1@cluster %>% 
     as_tibble() %>% 
     rename(P2= value) %>% 
@@ -222,8 +222,10 @@ initialisation2.0 = function(increments, K){
     ungroup() %>% 
     dplyr::select(P1,P2,p) %>% 
     pivot_wider( names_from = P2, values_from = p ) %>% as.matrix()
-
-  PI = 1*(c(1:K)==m1@cluster[1])
+  PI <- numeric(K)
+  PI.max = which.max(colMeans(m1@posterior$scaled[c(1, nrow(increments)/2+1), ]))
+  PI[PI.max] = 0.9
+  PI[-PI.max] = 0.1/(K-1)
   return(list(A = A, param = param, PI = PI))
 }
 
@@ -319,7 +321,7 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
   
   # Extraction des paramètres du modèle.
   A = Lambda$A
-  B = Lambda$B
+  Params = Lambda$param
   PI = Lambda$PI
   K = dim(B)[2]
   
@@ -332,6 +334,10 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
   J = dim(C)[2]
   
   while (compteur < G){
+    
+    # Calcul de la matrice B.
+    'B' = proba_emission(increments = increments, param = Params)
+    
     print(paste('Tour',compteur))
     ### EXPECTATION.
     
@@ -390,12 +396,14 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     # On gère la potentielle moyenne à calculer.
     somme_theta = somme_theta + theta_nv
     
-    # On met à jour la matrice des probabilités des émissions.
-    B = proba_emission(increments, Params)
+    # On range dans l ordre prescrit les paramètres. 
+    Relab = relabel(A, Params, gam[1,])
+    A = Relab$A; Params = Relab$params; PI = Relab$PI
     
     Aff = AffParams(Params)
     nu_nv = Aff$nu
     vit_nv = Aff$vitesses
+    
     print(A)
     print(nu_nv)
     print(vit_nv)
@@ -417,18 +425,7 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
 # E
 # 
 # 
-# etats_forts = function(B){
-#   l = nrow(B)
-#   liste_etats = numeric(l)
-#   for (t in 1:l){
-#     if (B[t,1] > B[t,2]){
-#       liste_etats[t] = 1
-#     } else if (B[t,1] < B[t,2]){
-#         liste_etats[t] = 2
-#         }
-#   }
-#   return(liste_etats)
-# }
+
 # Q_test = etats_forts(Lambda$B)
 # etats_caches == Q_test
 # 

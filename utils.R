@@ -107,4 +107,33 @@ AffParams = function(param){
   return(list(nu = matrix(nu, nrow = J, ncol = K),
               vitesses = vitesses))
 }
+etats_forts = function(B){
+  l = nrow(B)
+  liste_etats = numeric(l)
+  for (t in 1:l){
+    if (B[t,1] > B[t,2]){
+      liste_etats[t] = 1
+    } else if (B[t,1] < B[t,2]){
+        liste_etats[t] = 2
+        }
+  }
+  return(liste_etats)
+}
+
+relabel = function(A, params, PI){
+  K = ncol(A)
+  ind = which.max(AffParams(params)$nu[1,])
+  Params = lapply(c(ind,c(1:K)[-ind]),function(k){params[[k]]})
+  A = cbind(A[,ind],A[,-ind])
+  PI = cbind(PI[ind],PI[-ind])
+  return(list(A = A, params = Params, PI = PI))
+}
+temps = function(pdt, nbr_obs, N_ano){
+  N = nbr_obs + N_ano
+  tps_final = N * pdt 
+  instants = seq(1, tps_final, length.out = N)
+  anomalies = sample(1:(nbr_obs + ano),ano)
+  tps = instants[-anomalies]
+  return(tps = tps)
+}
 
