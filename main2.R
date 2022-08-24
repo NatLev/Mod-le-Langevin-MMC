@@ -1,3 +1,7 @@
+RFoptions(install="no")
+source('utils.R')
+source('simu.R')
+source('estim.R')
 load("lise_cov_save.RData")
 
 ################################################################################
@@ -35,10 +39,10 @@ p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
 
 ################################################################################
 
-nbr_obs = 100      
+nbr_obs = 1000      
 K = 2       
 J = 2     
-pdt = 0.01
+pdt = 0.1
 
 lim <- c(-30, 30, -30, 30) # limits of map
 resol <- 0.1 # grid resolution
@@ -58,11 +62,24 @@ beta_sim <- matrix(c(v1, -v1, v2, -v2), ncol = K, nrow = J)
 theta = Nu(beta_sim, vit)
 theta
 
-N = 2
+N = 50
 c = 0
 CPTR = 0
+
+ano = round(nbr_obs/100*5)   # nombre d'anomalies.
+tps = temps(pdt, nbr_obs, ano)
+
+
+liste_resultats = as.list(numeric(N))
+
 while (c < N){
   print(c)
+  # GEN = Generation_observation3.0(matrix_to_list(theta), 
+  #                                 etats_caches = CM_generateur( A, nbr_obs),
+  #                                 liste_cov = liste_cov,
+  #                                 Vits = c(0.4,0.4),
+  #                                 tps = tps   
+  #                                 )
   GEN = Generation(nbr_obs, pdt, A, liste_cov, theta)
   Obs = GEN$Obs
   increments_dta = GEN$increments_dta
@@ -94,9 +111,11 @@ while (c < N){
   
   if (N_EM < N_flexmix && N_EM < N_flexmix_r){
     CPTR = CPTR + 1
+    Aff$test = T
   }
+  liste_resultats[[c+1]] = Aff
   c = c + 1
 }
-
+CPTR/N
 
 

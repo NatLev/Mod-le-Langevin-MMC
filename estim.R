@@ -336,7 +336,7 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
   while (compteur < G){
     
     # Calcul de la matrice B.
-    'B' = proba_emission(increments = increments, param = Params)
+    B = proba_emission(increments = increments, param = Params)
     
     print(paste('Tour',compteur))
     ### EXPECTATION.
@@ -404,9 +404,9 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     nu_nv = Aff$nu
     vit_nv = Aff$vitesses
     
-    print(A)
-    print(nu_nv)
-    print(vit_nv)
+    # print(A)
+    # print(nu_nv)
+    # print(vit_nv)
     # On met à jour le compteur.
     compteur = compteur + 1
    } 

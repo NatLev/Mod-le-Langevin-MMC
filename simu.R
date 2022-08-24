@@ -230,7 +230,9 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
   
   return(Observations)}
 
-Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, Vits, tps, loc0 = c(0,0), affichage = TRUE, epsilon = 0.5){
+Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, 
+                                     Vits, tps, loc0 = c(0,0), 
+                                     affichage = TRUE, epsilon = 0.5){
   
   minx = min(liste_cov[[1]]$x) + 4 *epsilon
   miny = min(liste_cov[[1]]$y) + 4 *epsilon
@@ -239,9 +241,12 @@ Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, Vits,
   K = dim(theta)[2]
   J = length(liste_cov)
   nbr_obs = length(etats_caches) 
-  simu <-  simLangevinMM(liste_theta[[ etats_caches[1] ]], Vits[etats_caches[1]], c(tps[1],tps[2]), loc0 = loc0, liste_cov, keep_grad = TRUE)
+  simu <-  simLangevinMM(liste_theta[[ etats_caches[1] ]], Vits[etats_caches[1]],
+                         c(tps[1],tps[2]), loc0 = loc0, liste_cov, keep_grad = TRUE)
   for (t in 2:nbr_obs) {
-    prov <- simLangevinMM(liste_theta[[ etats_caches[t] ]], Vits[etats_caches[t]], c(tps[t-1],tps[t]), loc0 = as.numeric(simu[t-1,1:2]), liste_cov, keep_grad = TRUE)
+    prov <- simLangevinMM(liste_theta[[ etats_caches[t] ]], Vits[etats_caches[t]],
+                          c(tps[t-1],tps[t]), loc0 = as.numeric(simu[t-1,1:2]), 
+                          liste_cov, keep_grad = TRUE)
     if(prov[2,1]<minx) {
       prov[2,1]= minx + epsilon
     }
@@ -272,9 +277,8 @@ Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, Vits,
 
 
 Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
-  # browser()
+  
   # Creation de la suite des instants.
-  pdt = 0.1                    # Pas de temps de base.
   ano = round(nbr_obs/100*5)   # nombre d'anomalies.
   tps = temps(pdt, nbr_obs, ano)
   
@@ -284,13 +288,13 @@ Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
   Obs = 1
   compteur = -1
   while (is.null(dim(Obs))){
-    Obs = try(Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), 
+    Obs = try(Generation_observation3.0(liste_theta = matrix_to_list(nu), 
                                   etats_caches,  
                                   liste_cov,  
                                   Vits = c(vit,vit), tps) %>% 
     rowid_to_column())
     compteur = compteur + 1
-    print('i')
+    # print('i')
   }
   message(paste0('Il y a eu ',compteur,' erreurs.'))
   
