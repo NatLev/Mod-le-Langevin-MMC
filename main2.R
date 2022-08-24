@@ -2,7 +2,10 @@ RFoptions(install="no")
 source('utils.R')
 source('simu.R')
 source('estim.R')
+
 load("lise_cov_save.RData")
+
+
 
 ################################################################################
 ### Options graphiques
@@ -42,7 +45,7 @@ p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
 nbr_obs = 1000      
 K = 2       
 J = 2     
-pdt = 0.1
+pdt = 0.01
 
 lim <- c(-30, 30, -30, 30) # limits of map
 resol <- 0.1 # grid resolution
@@ -56,13 +59,13 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            nrow = K,
            byrow = TRUE)
 
-v1 = 5
+v1 = 3
 v2 = -5
 beta_sim <- matrix(c(v1, -v1, v2, -v2), ncol = K, nrow = J)
 theta = Nu(beta_sim, vit)
 theta
 
-N = 50
+N = 100
 c = 0
 CPTR = 0
 
@@ -71,15 +74,11 @@ tps = temps(pdt, nbr_obs, ano)
 
 
 liste_resultats = as.list(numeric(N))
+liste_viterbi = numeric(N)
+liste_flexmix = numeric(N)
 
 while (c < N){
   print(c)
-  # GEN = Generation_observation3.0(matrix_to_list(theta), 
-  #                                 etats_caches = CM_generateur( A, nbr_obs),
-  #                                 liste_cov = liste_cov,
-  #                                 Vits = c(0.4,0.4),
-  #                                 tps = tps   
-  #                                 )
   GEN = Generation(nbr_obs, pdt, A, liste_cov, theta)
   Obs = GEN$Obs
   increments_dta = GEN$increments_dta
@@ -99,9 +98,8 @@ while (c < N){
   
   E = EM_Langevin(increments = increments_dta, 
                   Lambda = Lambda, 
-                  G = 7, 
+                  G = 10, 
                   moyenne = FALSE)
-  
   
   Aff = AffParams(param_init)
   
@@ -113,9 +111,23 @@ while (c < N){
     CPTR = CPTR + 1
     Aff$test = T
   }
-  liste_resultats[[c+1]] = Aff
+  B = proba_emission(increments = increments_dta, param = E$param)
+  V = Viterbi(E$A, B, E$PI)
+  V_flexmix = Viterbi(A_init, proba_emission(increments_dta, param_init), PI_init)
+  
+  liste_viterbi[c+1] = sum(Obs$etats_caches[1:(nbr_obs-1)] == V)
+  liste_flexmix[c+1] = sum(Obs$etats_caches[1:(nbr_obs-1)] == V_flexmix)
+  liste_resultats[[c+1]] = E$Nu
+  
   c = c + 1
 }
-CPTR/N
+CPTR/N; mean(liste_viterbi/(nbr_obs-1))
+
+liste_viterbi; mean(liste_viterbi)
+liste_flexmix; mean(liste_flexmix)
 
 
+boxplot(data.frame(EM = 100*liste_viterbi/(nbr_obs-1), Flexmix = 100*liste_flexmix/(nbr_obs-1)),
+        main = "Test de Viterbi \n sur la prédiction de Flexmix et de l'EM " ,
+        col = c('orange','red'),
+        ylab = '% de bonnes prédictions')

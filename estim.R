@@ -240,7 +240,8 @@ initialisation2.0 = function(increments, K){
 ### d une liste. 
 ################################################################################
 
-Viterbi = function(A,B,PI){
+Viterbi = function(A, B, PI){
+  
   nbr_obs = dim(B)[1]
   K = dim(A)[1]
   
@@ -250,12 +251,13 @@ Viterbi = function(A,B,PI){
   
   # Initialisation de la matrice delta.
   delta[1,] = PI * B[1,]
+  
   # Récurrence.
   for (t in 2:nbr_obs){
     for (j in 1:K){
       
       # On calcule toutes les transitions possibles arrivant dans l'état j.
-      dA = delta[t-1,] * A[,j] * 4  # Pourquoi 4 ???
+      dA = delta[t-1,] * A[,j]
       
       # On trouve la transition la plus probable.
       Ind_max = which.max(dA)
@@ -273,11 +275,9 @@ Viterbi = function(A,B,PI){
   
   # On prend l'état final le plus probable.
   fin_max = which.max(delta[nbr_obs,])
-  P_et = delta[nbr_obs,fin_max]
   Q_et = c(fin_max)  # Initialisation de la suite d'état.
   for (t in (nbr_obs-1):1){
     new_etat = phi[t+1,Q_et[nbr_obs - t]]
-    #print(new_etat)
     Q_et = c(Q_et, new_etat)
   }
   return(retourner(Q_et))
@@ -315,6 +315,7 @@ Viterbi = function(A,B,PI){
 ################################################################################
 
 EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
+
   compteur = 0
   # On gère la dimension du modèle.
   nbr_obs = dim(increments)[1]/2
@@ -353,10 +354,15 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     
     
     # On gère la potentiel présence de NA dans la matrice gam.
-    if (any(is.na(gam))){  # anyNA marche aussi je crois bien.
+    if (anyNA(gam)){  # anyNA marche aussi je crois bien.
       warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
-      if (moyenne){return(list(somme_A/G,somme_theta/G,sqrt(vit)))}
-      else {return(list(A,theta_nv,sqrt(vit)))}
+      if (moyenne){return(list(A = somme_A/G,
+                               Nu = somme_theta/G,
+                               Vitesses = sqrt(Vits)))} else{return(list(A = A, 
+                                                                         Nu = nu_nv, 
+                                                                         Vitesses = vit_nv,
+                                                                         PI = PI,
+                                                                         param = Params))}
     }
     
     ## CALCUL DE A.
@@ -419,7 +425,9 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
                            Nu = somme_theta/G,
                            Vitesses = sqrt(Vits)))} else{return(list(A = A, 
                                                                      Nu = nu_nv, 
-                                                                     Vitesses = vit_nv))}
+                                                                     Vitesses = vit_nv,
+                                                                     PI = PI,
+                                                                     param = Params))}
 }
 # E = EM_Langevin(increments_dta, Lambda, Vc(0.4,0.4), G = 10)
 # E

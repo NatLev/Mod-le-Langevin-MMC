@@ -231,7 +231,7 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
   return(Observations)}
 
 Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, 
-                                     Vits, tps, loc0 = c(0,0), 
+                                     Vits, tps, silent = FALSE, loc0 = c(0,0), 
                                      affichage = TRUE, epsilon = 0.5){
   
   minx = min(liste_cov[[1]]$x) + 4 *epsilon
@@ -242,11 +242,12 @@ Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov,
   J = length(liste_cov)
   nbr_obs = length(etats_caches) 
   simu <-  simLangevinMM(liste_theta[[ etats_caches[1] ]], Vits[etats_caches[1]],
-                         c(tps[1],tps[2]), loc0 = loc0, liste_cov, keep_grad = TRUE)
+                         c(tps[1],tps[2]), silent = silent, loc0 = loc0, 
+                         liste_cov, keep_grad = TRUE)
   for (t in 2:nbr_obs) {
     prov <- simLangevinMM(liste_theta[[ etats_caches[t] ]], Vits[etats_caches[t]],
                           c(tps[t-1],tps[t]), loc0 = as.numeric(simu[t-1,1:2]), 
-                          liste_cov, keep_grad = TRUE)
+                          liste_cov, silent = silent, keep_grad = TRUE)
     if(prov[2,1]<minx) {
       prov[2,1]= minx + epsilon
     }
@@ -291,7 +292,7 @@ Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
     Obs = try(Generation_observation3.0(liste_theta = matrix_to_list(nu), 
                                   etats_caches,  
                                   liste_cov,  
-                                  Vits = c(vit,vit), tps) %>% 
+                                  Vits = c(vit,vit), tps, silent = TRUE) %>% 
     rowid_to_column())
     compteur = compteur + 1
     # print('i')
