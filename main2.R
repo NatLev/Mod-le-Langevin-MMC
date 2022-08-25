@@ -42,10 +42,10 @@ p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
 
 ################################################################################
 
-nbr_obs = 1000      
+nbr_obs = 500      
 K = 2       
 J = 2     
-pdt = 0.01
+pdt = 0.1
 
 lim <- c(-30, 30, -30, 30) # limits of map
 resol <- 0.1 # grid resolution
@@ -59,13 +59,13 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            nrow = K,
            byrow = TRUE)
 
-v1 = 3
+v1 = 5
 v2 = -5
 beta_sim <- matrix(c(v1, -v1, v2, -v2), ncol = K, nrow = J)
 theta = Nu(beta_sim, vit)
 theta
 
-N = 100
+N = 10
 c = 0
 CPTR = 0
 
@@ -79,8 +79,11 @@ liste_flexmix = numeric(N)
 
 while (c < N){
   print(c)
-  GEN = Generation(nbr_obs, pdt, A, liste_cov, theta)
-  Obs = GEN$Obs
+  #GEN = Generation(nbr_obs, pdt, A, liste_cov, theta)
+  Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_caches,  liste_cov, 
+                                  Vits = c(vit,vit), tps) %>% 
+    rowid_to_column()
+  #Obs = GEN$Obs
   increments_dta = GEN$increments_dta
   
   m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
@@ -98,7 +101,7 @@ while (c < N){
   
   E = EM_Langevin(increments = increments_dta, 
                   Lambda = Lambda, 
-                  G = 10, 
+                  G = 20, 
                   moyenne = FALSE)
   
   Aff = AffParams(param_init)
@@ -128,6 +131,6 @@ liste_flexmix; mean(liste_flexmix)
 
 
 boxplot(data.frame(EM = 100*liste_viterbi/(nbr_obs-1), Flexmix = 100*liste_flexmix/(nbr_obs-1)),
-        main = "Test de Viterbi \n sur la prédiction de Flexmix et de l'EM " ,
+        main = "Test de Viterbi \n sur la prédiction de Flexmix et de l'EM \n 100 générations, 10 tours d'EM, Nu 2, pdt = 0.01" ,
         col = c('orange','red'),
         ylab = '% de bonnes prédictions')

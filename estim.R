@@ -241,7 +241,6 @@ initialisation2.0 = function(increments, K){
 ################################################################################
 
 Viterbi = function(A, B, PI){
-  
   nbr_obs = dim(B)[1]
   K = dim(A)[1]
   
@@ -257,28 +256,29 @@ Viterbi = function(A, B, PI){
     for (j in 1:K){
       
       # On calcule toutes les transitions possibles arrivant dans l'état j.
-      dA = delta[t-1,] * A[,j]
-      
-      # On trouve la transition la plus probable.
-      Ind_max = which.max(dA)
-      C_max = dA[Ind_max]
-      
+      dA = delta[t-1,] * A[,j] 
+      max = max(dA)
+      if (max < 1e-200){ dA = dA * 1e150}
+     
       # On modifie delta.
-      delta[t,j] = C_max * B[t,j]
+      delta[t,j] = max(dA) * B[t,j]
       
       # On modifie phi.
-      phi[t,j] = Ind_max 
+      # phi[t,j] correspond a l etat precedent le + prob pour en arriver la. 
+      phi[t,j] = which.max(dA)
     }
   }
-  
-  # On construit maintenant la suite d'état la plus probable.
-  
+
+    # On construit maintenant la suite d'état la plus probable.
   # On prend l'état final le plus probable.
   fin_max = which.max(delta[nbr_obs,])
-  Q_et = c(fin_max)  # Initialisation de la suite d'état.
+  Q_et = numeric(nbr_obs-1) 
+  Q_et[1] = fin_max         # Initialisation de la suite d'état.  
+  cptr = 2                  # Compteur pour gerer la place dans la liste.
   for (t in (nbr_obs-1):1){
     new_etat = phi[t+1,Q_et[nbr_obs - t]]
-    Q_et = c(Q_et, new_etat)
+    Q_et[cptr] = new_etat
+    cptr = cptr + 1
   }
   return(retourner(Q_et))
 }
@@ -315,7 +315,6 @@ Viterbi = function(A, B, PI){
 ################################################################################
 
 EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
-
   compteur = 0
   # On gère la dimension du modèle.
   nbr_obs = dim(increments)[1]/2
@@ -339,7 +338,7 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     # Calcul de la matrice B.
     B = proba_emission(increments = increments, param = Params)
     
-    print(paste('Tour',compteur))
+    #print(paste('Tour',compteur))
     ### EXPECTATION.
     
     # GAMMA.
@@ -358,11 +357,9 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
       warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
       if (moyenne){return(list(A = somme_A/G,
                                Nu = somme_theta/G,
-                               Vitesses = sqrt(Vits)))} else{return(list(A = A, 
-                                                                         Nu = nu_nv, 
-                                                                         Vitesses = vit_nv,
-                                                                         PI = PI,
-                                                                         param = Params))}
+                               Vitesses = sqrt(Vits)))} else{return(list(A = Lambda$A, 
+                                                                         PI = Lambda$PI,
+                                                                         param = Lambda$param))}
     }
     
     ## CALCUL DE A.
@@ -417,9 +414,6 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     compteur = compteur + 1
    } 
   
-  
-  
-    
   # On gère la moyenne si nécessaire.
   if (moyenne){return(list(A = somme_A/G,
                            Nu = somme_theta/G,

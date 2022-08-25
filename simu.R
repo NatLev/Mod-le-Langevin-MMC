@@ -277,6 +277,60 @@ Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov,
 
 
 
+Generation_prime = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
+  
+  # Creation de la suite des instants.
+  ano = round(nbr_obs/100*5)   # nombre d'anomalies.
+  tps = temps(pdt, nbr_obs, ano)
+  
+  # suite des etats caches
+  etats_caches = CM_generateur( A, nbr_obs)
+  
+  Obs = 1
+  nbr_err = -1
+  while (is.null(dim(Obs))){
+    Obs = try(Generation_observation3.0(liste_theta = matrix_to_list(nu), 
+                                  etats_caches,  
+                                  liste_cov,  
+                                  Vits = c(vit,vit), tps, silent = F) %>% 
+    rowid_to_column(),silent = TRUE)
+    nbr_err = nbr_err + 1
+    # print('i')
+  }
+
+  message(paste0('Il y a eu ',nbr_err,' erreurs.'))
+  
+  increments_dta <- Obs %>% 
+    mutate(etats_caches = lag(etats_caches)) %>% 
+    mutate(delta_t = t- lag(t)) %>% 
+    mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
+    mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
+    rename(dep_x = Z1, dep_y = Z2) %>% 
+    dplyr::select(-x, -y) %>% 
+    na.omit() %>%  
+    pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
+    arrange(dimension) %>% 
+    create_covariate_columns()
+  
+  if (Affichage) {
+    p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
+      coord_equal() + scale_fill_viridis(name = "Value") + facet_wrap(level~.) +
+      ggopts
+    
+    p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
+    p1
+    
+    increments_dta %>% pivot_longer( matches("cov"),  names_to = "covariate", 
+                                     values_to = "grad") %>% ggplot() + 
+      geom_point(aes(x=grad, y=deplacement, col = as.factor(etats_caches))) +
+      facet_wrap(~covariate) + ggtitle("covariate")
+    return()
+  }
+  
+  return(list(Obs = Obs, increments_dta = increments_dta))
+}
+#r = Generation(1000, pdt, A, liste_cov, theta, Affichage = TRUE)
+
 Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
   
   # Creation de la suite des instants.
@@ -290,10 +344,10 @@ Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
   compteur = -1
   while (is.null(dim(Obs))){
     Obs = try(Generation_observation3.0(liste_theta = matrix_to_list(nu), 
-                                  etats_caches,  
-                                  liste_cov,  
-                                  Vits = c(vit,vit), tps, silent = TRUE) %>% 
-    rowid_to_column())
+                                        etats_caches,  
+                                        liste_cov,  
+                                        Vits = c(vit,vit), tps, silent = TRUE) %>% 
+                rowid_to_column())
     compteur = compteur + 1
     # print('i')
   }
@@ -329,6 +383,3 @@ Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
   
   return(list(Obs = Obs, increments_dta = increments_dta))
 }
-#r = Generation(1000, pdt, A, liste_cov, theta, Affichage = TRUE)
-
-

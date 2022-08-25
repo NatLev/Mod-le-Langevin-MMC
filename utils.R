@@ -128,6 +128,7 @@ relabel = function(A, params, PI){
   PI = cbind(PI[ind],PI[-ind])
   return(list(A = A, params = Params, PI = PI))
 }
+
 temps = function(pdt, nbr_obs, N_ano){
   N = nbr_obs + N_ano
   tps_final = N * pdt 

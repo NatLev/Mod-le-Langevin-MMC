@@ -40,7 +40,7 @@ p1
 # parameters simu ---------------------------------------------------------
 
 
-nbr_obs = 500      
+nbr_obs = 2000      
 K = 2       
 J = 2        
 dimension = 2  
@@ -104,35 +104,36 @@ theta
 # Simulation des observations en utilisant Rhabit. 
 
 
-Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_caches,  liste_cov, 
-                                Vits = c(vit,vit), tps) %>% 
-  rowid_to_column()
+# Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_caches,  liste_cov, 
+#                                 Vits = c(vit,vit), tps) %>% 
+#   rowid_to_column()
+
+Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
+
+# p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
 
 
-p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
 
-
-
-increments_dta <- Obs %>% 
-  mutate(etats_caches = lag(etats_caches)) %>% 
-  mutate(delta_t = t- lag(t)) %>% 
-  mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
-  mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
-  rename(dep_x = Z1, dep_y = Z2) %>% 
-  dplyr::select(-x, -y) %>% 
-  na.omit() %>%  
-  pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
-  arrange(dimension) %>% 
+increments_dta <- Obs %>%
+  mutate(etats_caches = lag(etats_caches)) %>%
+  mutate(delta_t = t- lag(t)) %>%
+  mutate_at(vars(matches("grad")), ~lag(.x))  %>%
+  mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>%
+  rename(dep_x = Z1, dep_y = Z2) %>%
+  dplyr::select(-x, -y) %>%
+  na.omit() %>%
+  pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>%
+  arrange(dimension) %>%
   create_covariate_columns()
 
 
-increments_dta %>% pivot_longer( matches("cov"),  names_to = "covariate", values_to = "grad") %>% ggplot() + 
-  geom_point(aes(x=grad, y=deplacement, col = as.factor(etats_caches))) +
-  facet_wrap(~covariate) + ggtitle("covariate")
+# increments_dta %>% pivot_longer( matches("cov"),  names_to = "covariate", values_to = "grad") %>% ggplot() + 
+#   geom_point(aes(x=grad, y=deplacement, col = as.factor(etats_caches))) +
+#   facet_wrap(~covariate) + ggtitle("covariate")
 
 # preparation du jeu de données incréments
 
-Generation(nbr_obs, pdt, A, liste_cov, theta)
+# Generation(nbr_obs, pdt, A, liste_cov, theta)
 
 
 m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
@@ -152,11 +153,115 @@ Lambda = list('A' = Relab$A,
 
 E = EM_Langevin(increments = increments_dta, 
                 Lambda = Lambda, 
-                G = 7, 
+                G = 20, 
                 moyenne = FALSE)
 
 
+
+B = proba_emission(increments = increments_dta, param = E$param)
+V = Viterbi(E$A, B, E$PI)
+V_flexmix = Viterbi(Relab$A, proba_emission(increments_dta, Relab$param), Relab$PI)
+
+print("Réussite de Viterbi pour l'EM")
+sum(Obs$etats_caches[1:(nbr_obs-1)] == V)/(nbr_obs-1)
+print("Réussite de Viterbi pour Flexmix")
+sum(Obs$etats_caches[1:(nbr_obs-1)] == V_flexmix)/(nbr_obs-1)
+
+rel = relabel(A_init, param_init, PI_init)
+rel$A; AffParams(rel$params)
+E$A; AffParams(E$param)
+
+N = 100
+compteur = 0
+Viterbi_EM = numeric(N)
+Viterbi_Flexmix = numeric(N)
+
+while (compteur < N) {
+  print(paste0('Tour ',compteur+1))
+  Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
+
+  increments_dta <- Obs %>% 
+    mutate(etats_caches = lag(etats_caches)) %>% 
+    mutate(delta_t = t- lag(t)) %>% 
+    mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
+    mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
+    rename(dep_x = Z1, dep_y = Z2) %>% 
+    dplyr::select(-x, -y) %>% 
+    na.omit() %>%  
+    pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
+    arrange(dimension) %>% 
+    create_covariate_columns()
+ 
+  m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
+  table(m1@cluster, increments_dta$etats_caches)
+  parameters(m1)
+  
+  Init = initialisation2.0(increments = increments_dta, K = 2)
+  A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
+  
+  Relab = relabel(A_init, param_init, PI_init)
+  
+  Lambda = list('A' = Relab$A,
+                'param' = Relab$param,
+                'PI' = Relab$PI)
+  
+  E = EM_Langevin(increments = increments_dta, 
+                  Lambda = Lambda, 
+                  G = 20, 
+                  moyenne = FALSE)
+  
+  B = proba_emission(increments = increments_dta, param = E$param)
+  V = Viterbi(E$A, B, E$PI)
+  V_flexmix = Viterbi(Relab$A, proba_emission(increments_dta, Relab$param), Relab$PI)
+  
+  Viterbi_EM[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V)/(nbr_obs-1)
+  Viterbi_Flexmix[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V_flexmix)/(nbr_obs-1)
+  
+  compteur = compteur + 1
+}
+
+
+boxplot(data.frame(EM = 100*Viterbi_EM, Flexmix = 100*Viterbi_Flexmix),
+        main = "Test de Viterbi \n sur la prédiction de Flexmix et de l'EM \n 100 générations, 20 tours d'EM, Nu 4, pdt = 0.1" ,
+        col = c('orange','red'),
+        ylab = '% de bonnes prédictions')
+
+
+
+
+
+
+
+
+
+
+
+
+
+# install.packages("ggalluvial")
+# library(ggalluvial)
+
+
+
+
+# df = data.frame(Vit_EM = V, Vit_Flexmix = V_flexmix, Reel = Obs$etats_caches[1:(nbr_obs-1)] )
+
+
+# ggplot(data = df,
+#        aes(x = vit_em, stratum = stratum, alluvium = alluvium,
+#            y = Freq, label = stratum)) +
+#   geom_alluvium(aes(fill = Survived)) +
+#   geom_stratum() + geom_text(stat = "stratum") +
+#   theme_minimal() +
+#   ggtitle("passengers on the maiden voyage of the Titanic",
+#           "stratified by demographics and survival")
+# 
+
+
+
+
 Aff = AffParams(param_init)
+Aff
 nu_flexmix = Aff$nu
 nu_EM = E$Nu
 
