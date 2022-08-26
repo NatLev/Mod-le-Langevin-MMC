@@ -93,39 +93,6 @@ etats_caches = CM_generateur( A, nbr_obs)
 
 
 
-#beta_sim <-BETA(K = K, J=J)  ## une colonne par etats cachés, une ligne par covariable
-v1 = 5
-v2 = -5
-beta_sim <- matrix(c(v1, -v1, v2, -v2), ncol = K, nrow = J)
-theta = Nu(beta_sim, vit)
-theta
-
-
-# Simulation des observations en utilisant Rhabit. 
-
-
-# Obs = Generation_observation3.0(liste_theta = matrix_to_list(beta_sim), etats_caches,  liste_cov, 
-#                                 Vits = c(vit,vit), tps) %>% 
-#   rowid_to_column()
-
-Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
-
-# p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
-
-
-
-increments_dta <- Obs %>%
-  mutate(etats_caches = lag(etats_caches)) %>%
-  mutate(delta_t = t- lag(t)) %>%
-  mutate_at(vars(matches("grad")), ~lag(.x))  %>%
-  mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>%
-  rename(dep_x = Z1, dep_y = Z2) %>%
-  dplyr::select(-x, -y) %>%
-  na.omit() %>%
-  pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>%
-  arrange(dimension) %>%
-  create_covariate_columns()
-
 
 # increments_dta %>% pivot_longer( matches("cov"),  names_to = "covariate", values_to = "grad") %>% ggplot() + 
 #   geom_point(aes(x=grad, y=deplacement, col = as.factor(etats_caches))) +
@@ -135,26 +102,6 @@ increments_dta <- Obs %>%
 
 # Generation(nbr_obs, pdt, A, liste_cov, theta)
 
-
-m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
-table(m1@cluster, increments_dta$etats_caches)
-parameters(m1)
-
-Init = initialisation2.0(increments = increments_dta, K = 2)
-A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
-
-theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_caches)
-
-Relab = relabel(A_init, param_init, PI_init)
-
-Lambda = list('A' = Relab$A,
-              'param' = Relab$param,
-              'PI' = Relab$PI)
-
-E = EM_Langevin(increments = increments_dta, 
-                Lambda = Lambda, 
-                G = 20, 
-                moyenne = FALSE)
 
 
 
@@ -174,7 +121,18 @@ E$A; AffParams(E$param)
 
 
 
-N = 100
+################################################################################
+#
+#                              Test de Viterbi 
+#
+################################################################################
+A = matrix(c(0.95,0.05,0.1,0.9),
+           ncol = K,
+           nrow = K,
+           byrow = TRUE)
+
+
+N = 5
 liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
@@ -240,26 +198,117 @@ boxplot(Resultats[,-1],
         )
 
 
+################################################################################
+#
+#                              Test avec la norme 
+#
+################################################################################
 
-boxplot(data.frame(EM = 100*Viterbi_EM, Flexmix = 100*Viterbi_Flexmix),
-        main = "Test de Viterbi \n sur la prédiction de Flexmix et de l'EM \n 100 générations, 20 tours d'EM, Nu 4, pdt = 0.1" ,
-        col = c('orange','red'),
-        ylab = '% de bonnes prédictions')
+A = matrix(c(0.95,0.05,0.1,0.9),
+           ncol = K,
+           nrow = K,
+           byrow = TRUE)
 
+v1 = 5
+v2 = -5
+beta_sim <- matrix(c(v1, -v1, v2, -v2), ncol = K, nrow = J)
+theta = Nu(beta_sim, vit)
+theta
 
+N = 100
+liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
+                   Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
+                   Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
 
+Resultats_A = data.frame(col_inutile = 1:N)
+Resultats_Nu = data.frame(col_inutile = 1:N)
 
-
-
-ddg = data.frame(1:10)
-ddg[i] = 4:13
-k = 2
-ddg[2] = 5:14
-ddg
-for (i in 1:2){
-  ddg[paste0('Nu',i)] = 1:10
+for (i in 1:length(liste_theta)){
+  theta = liste_theta[[i]]
+  liste_norm_A_EM = numeric(N)
+  liste_norm_A_Flexmix = numeric(N)
+  liste_norm_nu_EM = numeric(N)
+  liste_norm_nu_Flexmix = numeric(N)
+  
+  compteur = 0
+  while (compteur <= N){
+    print(paste0('Tour ',compteur+1, ' pour Nu',i))
+    
+    Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
+    
+    increments_dta <- Obs %>%
+      mutate(etats_caches = lag(etats_caches)) %>%
+      mutate(delta_t = t- lag(t)) %>%
+      mutate_at(vars(matches("grad")), ~lag(.x))  %>%
+      mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>%
+      rename(dep_x = Z1, dep_y = Z2) %>%
+      dplyr::select(-x, -y) %>%
+      na.omit() %>%
+      pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>%
+      arrange(dimension) %>%
+      create_covariate_columns()
+    
+    m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
+    table(m1@cluster, increments_dta$etats_caches)
+    parameters(m1)
+    
+    Init = initialisation2.0(increments = increments_dta, K = 2)
+    A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
+    
+    theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_caches)
+    
+    Relab = relabel(A_init, param_init, PI_init)
+    
+    Lambda = list('A' = Relab$A,
+                  'param' = Relab$param,
+                  'PI' = Relab$PI)
+    
+    E = EM_Langevin(increments = increments_dta, 
+                    Lambda = Lambda, 
+                    G = 20, 
+                    moyenne = FALSE)
+    
+    liste_norm_A_EM[compteur] = norm(A - E$A)
+    liste_norm_A_Flexmix[compteur] = norm(A - Relab$A)
+    liste_norm_nu_EM[compteur] = norm(theta - AffParams(E$param)$nu)
+    liste_norm_nu_Flexmix[compteur] = norm(theta - AffParams(Relab$param)$nu)
+    
+    compteur = compteur + 1
+  }
+  Resultats_A[paste0('A EM Nu',i)] = liste_norm_A_EM
+  Resultats_A[paste0('A Flexmix Nu',i)] = liste_norm_A_Flexmix
+  Resultats_Nu[paste0('Nu EM Nu',i)] = liste_norm_nu_EM
+  Resultats_Nu[paste0('Nu Flexmix Nu',i)] = liste_norm_nu_Flexmix
 }
-ddg
+
+boxplot(Resultats_A[-1],
+        main = "Test sur la prédiction des matrices de transitions \n 
+        1000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        col = c('red','red','orange','orange','yellow','yellow'),
+        ylab = 'Erreurs')
+
+boxplot(Resultats_Nu[-1],
+        main = "Test sur la prédiction des Nu \n 
+        1000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        col = c('red','red','orange','orange','yellow','yellow'),
+        ylab = 'Erreurs')
+
+
+
+
+Resultats = data.frame(col_inutile = 1:N)
+
+N = 100 
+compteur = 0 
+
+boxplot(Resultats[-1],
+        main = "Test des normes \n sur la prédiction de Flexmix et de l'EM \n 100 générations, 20 tours d'EM, Nu 1, pdt = 0.1" ,
+        col = c('orange','red','orange','red'),
+        ylab = 'erreur')
+
+
+
+
 
 
 

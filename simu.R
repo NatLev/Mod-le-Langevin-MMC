@@ -236,7 +236,7 @@ Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov,
   minx = min(liste_cov[[1]]$x) + 4 *epsilon
   miny = min(liste_cov[[1]]$y) + 4 *epsilon
   maxx = max(liste_cov[[1]]$x) - 4 *epsilon
-  maxy = min(liste_cov[[1]]$y) - 4 *epsilon
+  maxy = max(liste_cov[[1]]$y) - 4 *epsilon
   K = dim(theta)[2]
   J = length(liste_cov)
   nbr_obs = length(etats_caches) 
@@ -256,7 +256,7 @@ Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov,
     if(prov[2,2]<miny)  {
       prov[2,2] = miny + epsilon
     }
-    if(prov[2,2]<minx)  {
+    if(prov[2,2]>maxy)  {
       prov[2,2] = maxy - epsilon
     }
     
@@ -277,7 +277,6 @@ Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov,
 
 
 Generation_prime = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
-  
   # Creation de la suite des instants.
   ano = round(nbr_obs/100*5)   # nombre d'anomalies.
   tps = temps(pdt, nbr_obs, ano)
@@ -331,6 +330,7 @@ Generation_prime = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
 #r = Generation(1000, pdt, A, liste_cov, theta, Affichage = TRUE)
 
 Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
+
   # Creation de la suite des instants.
   ano = round(nbr_obs/100*5)   # nombre d'anomalies.
   tps = temps(pdt, nbr_obs, ano)

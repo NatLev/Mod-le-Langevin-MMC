@@ -193,12 +193,12 @@ estim_etatsconnus = function(increments, etats){
 ################################################################################
 
 initialisation2.0 = function(increments, K){
-  ## create formula
+    ## create formula
   cov_list <- str_extract(colnames(increments), pattern = "cov.[1234567890]?") %>% na.omit()
   rhs <- paste0( c("-1", cov_list), collapse= " + ")
   form <- paste0( "deplacement ~ ", rhs)
   # fit regression mixture
-  m1 <- flexmix( formula = as.formula(form), k= K, data= increments)
+  m1 <- flexmix( formula = as.formula(form), k= 2, data= increments)
   coef_est <- parameters(m1)
   
   #format parameter

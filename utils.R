@@ -125,6 +125,7 @@ relabel = function(A, params, PI){
   ind = which.max(AffParams(params)$nu[1,])
   Params = lapply(c(ind,c(1:K)[-ind]),function(k){params[[k]]})
   A = cbind(A[,ind],A[,-ind])
+  A = t(cbind(A[ind,],A[-ind,]))
   PI = cbind(PI[ind],PI[-ind])
   return(list(A = A, params = Params, PI = PI))
 }
@@ -133,8 +134,8 @@ temps = function(pdt, nbr_obs, N_ano){
   N = nbr_obs + N_ano
   tps_final = N * pdt 
   instants = seq(1, tps_final, length.out = N)
-  anomalies = sample(1:(nbr_obs + ano),ano)
+  anomalies = sample(1:(nbr_obs + ano),N_ano)
   tps = instants[-anomalies]
-  return(tps = tps)
+  return(tps)
 }
 
