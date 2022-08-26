@@ -337,7 +337,6 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     
     # Calcul de la matrice B.
     B = proba_emission(increments = increments, param = Params)
-    
     #print(paste('Tour',compteur))
     ### EXPECTATION.
     
@@ -387,7 +386,6 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     # On obtient l'estimateur de la matrice A.
     A = format_mat(somme_Xi * somme_gam)
     somme_A = somme_A + A
-    
     
     # THETA.
     theta_nv = matrix(1,J,K)

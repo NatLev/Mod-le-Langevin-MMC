@@ -233,7 +233,6 @@ Generation_observation2.0 = function(beta, Q, C, vit, time, loc0 = c(0,0), affic
 Generation_observation3.0 = function(liste_theta, etats_caches, liste_cov, 
                                      Vits, tps, silent = FALSE, loc0 = c(0,0), 
                                      affichage = TRUE, epsilon = 0.5){
-  
   minx = min(liste_cov[[1]]$x) + 4 *epsilon
   miny = min(liste_cov[[1]]$y) + 4 *epsilon
   maxx = max(liste_cov[[1]]$x) - 4 *epsilon
@@ -332,7 +331,6 @@ Generation_prime = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
 #r = Generation(1000, pdt, A, liste_cov, theta, Affichage = TRUE)
 
 Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
-  
   # Creation de la suite des instants.
   ano = round(nbr_obs/100*5)   # nombre d'anomalies.
   tps = temps(pdt, nbr_obs, ano)

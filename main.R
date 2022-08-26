@@ -40,7 +40,7 @@ p1
 # parameters simu ---------------------------------------------------------
 
 
-nbr_obs = 2000      
+nbr_obs = 1000      
 K = 2       
 J = 2        
 dimension = 2  
@@ -62,7 +62,7 @@ tps = temps(pdt, nbr_obs, ano)
 #PI = c(.6,0.4)
 
 # Paramètre de création des covariables. 
-set.seed(1)
+#set.seed(1)
 lim <- c(-30, 30, -30, 30) # limits of map
 resol <- 0.1 # grid resolution
 rho <- 2; nu <- 1.5; sigma2 <- 30# Matern covariance parameters
@@ -171,54 +171,74 @@ rel = relabel(A_init, param_init, PI_init)
 rel$A; AffParams(rel$params)
 E$A; AffParams(E$param)
 
+
+
+
 N = 100
-compteur = 0
-Viterbi_EM = numeric(N)
-Viterbi_Flexmix = numeric(N)
+liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
+               Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
+               Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
 
-while (compteur < N) {
-  print(paste0('Tour ',compteur+1))
-  Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
-
-  increments_dta <- Obs %>% 
-    mutate(etats_caches = lag(etats_caches)) %>% 
-    mutate(delta_t = t- lag(t)) %>% 
-    mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
-    mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
-    rename(dep_x = Z1, dep_y = Z2) %>% 
-    dplyr::select(-x, -y) %>% 
-    na.omit() %>%  
-    pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
-    arrange(dimension) %>% 
-    create_covariate_columns()
- 
-  m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
-  table(m1@cluster, increments_dta$etats_caches)
-  parameters(m1)
+Resultats = data.frame(col_inutile = 1:N)
   
-  Init = initialisation2.0(increments = increments_dta, K = 2)
-  A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
+for (i in 1:length(liste_theta)){
+  theta = liste_theta[[i]]
+  Viterbi_EM = numeric(N)
+  Viterbi_Flexmix = numeric(N)
+  print(theta)
   
-  Relab = relabel(A_init, param_init, PI_init)
-  
-  Lambda = list('A' = Relab$A,
-                'param' = Relab$param,
-                'PI' = Relab$PI)
-  
-  E = EM_Langevin(increments = increments_dta, 
-                  Lambda = Lambda, 
-                  G = 20, 
-                  moyenne = FALSE)
-  
-  B = proba_emission(increments = increments_dta, param = E$param)
-  V = Viterbi(E$A, B, E$PI)
-  V_flexmix = Viterbi(Relab$A, proba_emission(increments_dta, Relab$param), Relab$PI)
-  
-  Viterbi_EM[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V)/(nbr_obs-1)
-  Viterbi_Flexmix[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V_flexmix)/(nbr_obs-1)
-  
-  compteur = compteur + 1
+  compteur = 0
+  while (compteur < N) {
+    print(paste0('Tour ',compteur+1, ' pour Nu',i))
+    Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
+    
+    increments_dta <- Obs %>% 
+      mutate(etats_caches = lag(etats_caches)) %>% 
+      mutate(delta_t = t- lag(t)) %>% 
+      mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
+      mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
+      rename(dep_x = Z1, dep_y = Z2) %>% 
+      dplyr::select(-x, -y) %>% 
+      na.omit() %>%  
+      pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
+      arrange(dimension) %>% 
+      create_covariate_columns()
+    
+    m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
+    table(m1@cluster, increments_dta$etats_caches)
+    parameters(m1)
+    
+    Init = initialisation2.0(increments = increments_dta, K = 2)
+    A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
+    
+    Relab = relabel(A_init, param_init, PI_init)
+    
+    Lambda = list('A' = Relab$A,
+                  'param' = Relab$param,
+                  'PI' = Relab$PI)
+    
+    E = EM_Langevin(increments = increments_dta, 
+                    Lambda = Lambda, 
+                    G = 20, 
+                    moyenne = FALSE)
+    B = proba_emission(increments = increments_dta, param = E$param)
+    V = Viterbi(E$A, B, E$PI)
+    V_flexmix = Viterbi(Relab$A, proba_emission(increments_dta, Relab$param), Relab$PI)
+    
+    Viterbi_EM[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V)/(nbr_obs-1)
+    Viterbi_Flexmix[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V_flexmix)/(nbr_obs-1)
+   
+    compteur = compteur + 1
+  }
+  Resultats[paste0('Nu',i,' EM')] = Viterbi_EM  
+  Resultats[paste0('Nu',i,' Flexmix')] = Viterbi_Flexmix  
 }
+boxplot(Resultats[,-1], 
+        col = c('orange','orange','red','red','pink','pink'),
+        main = "Test de Viterbi pour l'EM et Flexmix \n 1000 observations, 100 répétitions, 3 nus, \n 20 iterations de l'EM"
+        
+        )
+
 
 
 boxplot(data.frame(EM = 100*Viterbi_EM, Flexmix = 100*Viterbi_Flexmix),
@@ -231,8 +251,15 @@ boxplot(data.frame(EM = 100*Viterbi_EM, Flexmix = 100*Viterbi_Flexmix),
 
 
 
-
-
+ddg = data.frame(1:10)
+ddg[i] = 4:13
+k = 2
+ddg[2] = 5:14
+ddg
+for (i in 1:2){
+  ddg[paste0('Nu',i)] = 1:10
+}
+ddg
 
 
 
