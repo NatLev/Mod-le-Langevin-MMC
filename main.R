@@ -40,7 +40,7 @@ p1
 # parameters simu ---------------------------------------------------------
 
 
-nbr_obs = 4000      
+nbr_obs = 1000      
 K = 2       
 J = 2        
 dimension = 2  
@@ -123,7 +123,7 @@ E$A; AffParams(E$param)
 
 ################################################################################
 #
-#                              Test de Viterbi 
+#                              Tests version biaisee
 #
 ################################################################################
 A = matrix(c(0.95,0.05,0.1,0.9),
@@ -145,6 +145,11 @@ for (i in 1:length(liste_theta)){
   theta = liste_theta[[i]]
   Viterbi_EM = numeric(N)
   Viterbi_Flexmix = numeric(N)
+  liste_norm_A_EM = numeric(N)
+  liste_norm_A_Flexmix = numeric(N)
+  liste_norm_nu_EM = numeric(N)
+  liste_norm_nu_Flexmix = numeric(N)
+  
   print(theta)
   
   compteur = 0
@@ -229,52 +234,58 @@ boxplot(Resultats_Nu[-1],
 
 ################################################################################
 #
-#                              Test avec la norme 
+#                              Tests version non biaisee
 #
 ################################################################################
+nbr_obs = 1000      
+K = 2       
+J = 2        
+dimension = 2  
+vit = 1 
+pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),
            ncol = K,
            nrow = K,
            byrow = TRUE)
 
-v1 = 5
-v2 = -5
-beta_sim <- matrix(c(v1, -v1, v2, -v2), ncol = K, nrow = J)
-theta = Nu(beta_sim, vit)
-theta
 
-N = 100
-liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
-                   Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
-                   Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
+N = 10
+# liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
+#                    Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
+#                    Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
 
+liste_theta = list(Nu(matrix(c(5,-5,5,5),ncol =K, nrow = J),vit))
+Resultats = data.frame(col_inutile = 1:N)
 Resultats_A = data.frame(col_inutile = 1:N)
 Resultats_Nu = data.frame(col_inutile = 1:N)
+nbr_erreurs = 0
 
 for (i in 1:length(liste_theta)){
   theta = liste_theta[[i]]
+  Viterbi_EM = numeric(N)
+  Viterbi_Flexmix = numeric(N)
   liste_norm_A_EM = numeric(N)
   liste_norm_A_Flexmix = numeric(N)
   liste_norm_nu_EM = numeric(N)
   liste_norm_nu_Flexmix = numeric(N)
+  print(theta)
   
   compteur = 0
-  while (compteur <= N){
+  while (compteur < N) {
     print(paste0('Tour ',compteur+1, ' pour Nu',i))
-    
     Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
     
-    increments_dta <- Obs %>%
-      mutate(etats_caches = lag(etats_caches)) %>%
-      mutate(delta_t = t- lag(t)) %>%
-      mutate_at(vars(matches("grad")), ~lag(.x))  %>%
-      mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>%
-      rename(dep_x = Z1, dep_y = Z2) %>%
-      dplyr::select(-x, -y) %>%
-      na.omit() %>%
-      pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>%
-      arrange(dimension) %>%
+    increments_dta <- Obs %>% 
+      mutate(etats_caches = lag(etats_caches)) %>% 
+      mutate(delta_t = t- lag(t)) %>% 
+      mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
+      mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
+      rename(dep_x = Z1, dep_y = Z2) %>% 
+      dplyr::select(-x, -y) %>% 
+      na.omit() %>%  
+      pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
+      arrange(dimension) %>% 
       create_covariate_columns()
     
     m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
@@ -283,8 +294,6 @@ for (i in 1:length(liste_theta)){
     
     Init = initialisation2.0(increments = increments_dta, K = 2)
     A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
-    
-    theta_opt = estim_etatsconnus(increments_dta, etats = increments_dta$etats_caches)
     
     Relab = relabel(A_init, param_init, PI_init)
     
@@ -297,34 +306,58 @@ for (i in 1:length(liste_theta)){
                     G = 20, 
                     moyenne = FALSE)
     
-    liste_norm_A_EM[compteur] = norm(A - E$A)
-    liste_norm_A_Flexmix[compteur] = norm(A - Relab$A)
-    liste_norm_nu_EM[compteur] = norm(theta - AffParams(E$param)$nu)
-    liste_norm_nu_Flexmix[compteur] = norm(theta - AffParams(Relab$param)$nu)
-    
-    compteur = compteur + 1
+    if (!E$erreur){
+      print("Pas d erreur")
+      B = proba_emission(increments = increments_dta, param = E$param)
+      V = Viterbi(E$A, B, E$PI)
+      V_flexmix = Viterbi(Relab$A, proba_emission(increments_dta, Relab$param), Relab$PI)
+      
+      Viterbi_EM[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V)/(nbr_obs-1)
+      Viterbi_Flexmix[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V_flexmix)/(nbr_obs-1)
+      
+      liste_norm_A_EM[compteur] = norm(A - E$A)
+      liste_norm_A_Flexmix[compteur] = norm(A - Relab$A)
+      liste_norm_nu_EM[compteur] = norm(theta - AffParams(E$param)$nu)
+      liste_norm_nu_Flexmix[compteur] = norm(theta - AffParams(Relab$param)$nu)
+      compteur = compteur + 1
+      }else{nbr_erreurs = nbr_erreurs + 1}
   }
+  # Test de Viterbi.
+  Resultats[paste0('Nu',i,' EM')] = Viterbi_EM  
+  Resultats[paste0('Nu',i,' Flexmix')] = Viterbi_Flexmix  
+  
+  # Test des normes.
+  # A.
   Resultats_A[paste0('A EM Nu',i)] = liste_norm_A_EM
   Resultats_A[paste0('A Flexmix Nu',i)] = liste_norm_A_Flexmix
+  
+  # Nu.
   Resultats_Nu[paste0('Nu EM Nu',i)] = liste_norm_nu_EM
   Resultats_Nu[paste0('Nu Flexmix Nu',i)] = liste_norm_nu_Flexmix
+  
 }
-
+boxplot(Resultats[,-1], 
+        col = c('orange','orange','red','red','pink','pink'),
+        main = paste0("Test de Viterbi pour l'EM et Flexmix \n ",nbr_obs," observations, ",N," répétitions, 3 nus, \n 20 iterations de l'EM")
+        
+)
 boxplot(Resultats_A[-1],
-        main = "Test sur la prédiction des matrices de transitions \n 
-        2000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        main = paste0("Test sur la prédiction des matrices de transitions \n 
+        ",nbr_obs," obs, ",N, " gen, 20 tours d'EM trois Nu, pdt = 0.1"),
         col = c('red','red','orange','orange','yellow','yellow'),
         ylab = 'Erreurs')
 
 boxplot(Resultats_Nu[-1],
-        main = "Test sur la prédiction des Nu \n 
-        2000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        main = paste0("Test sur la prédiction des Nu \n 
+        ",nbr_obs," obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1"),
         col = c('red','red','orange','orange','yellow','yellow'),
         ylab = 'Erreurs')
 
 
 
 
+
+################################################################################
 wResultats = data.frame(col_inutile = 1:N)
 
 N = 100 

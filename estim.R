@@ -352,14 +352,26 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     
     
     # On gère la potentiel présence de NA dans la matrice gam.
+    
+    ### VERSION BIAISEE.
+    # if (anyNA(gam)){  # anyNA marche aussi je crois bien.
+    #   warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
+    #   if (moyenne){return(list(A = somme_A/G,
+    #                            Nu = somme_theta/G,
+    #                            Vitesses = sqrt(Vits)))} else{return(list(A = Lambda$A, 
+    #                                                                      PI = Lambda$PI,
+    #                                                                      param = Lambda$param))}
+    # }
+    # 
+    
+    ### VERSION NON BIAISEE.
     if (anyNA(gam)){  # anyNA marche aussi je crois bien.
+      print('probleme')
       warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
-      if (moyenne){return(list(A = somme_A/G,
-                               Nu = somme_theta/G,
-                               Vitesses = sqrt(Vits)))} else{return(list(A = Lambda$A, 
-                                                                         PI = Lambda$PI,
-                                                                         param = Lambda$param))}
+      return(list(erreur = TRUE))
     }
+    
+    
     
     ## CALCUL DE A.
     
@@ -387,6 +399,12 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     A = format_mat(somme_Xi * somme_gam)
     somme_A = somme_A + A
     
+    if (anyNA(A)){  # anyNA marche aussi je crois bien.
+      print('probleme')
+      warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
+      return(list(erreur = TRUE))
+    }
+    
     # THETA.
     theta_nv = matrix(1,J,K)
     Params = lapply(1:K, function(k){
@@ -405,6 +423,12 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
     nu_nv = Aff$nu
     vit_nv = Aff$vitesses
     
+    if (anyNA(nu_nv) | anyNA(vit_nv)){  # anyNA marche aussi je crois bien.
+      print('probleme')
+      warning("Il y a présence d'au moins un NA dans la matrice gam, voici le dernier résultat")
+      return(list(erreur = TRUE))
+    }
+    
     # print(A)
     # print(nu_nv)
     # print(vit_nv)
@@ -419,7 +443,8 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
                                                                      Nu = nu_nv, 
                                                                      Vitesses = vit_nv,
                                                                      PI = PI,
-                                                                     param = Params))}
+                                                                     param = Params,
+                                                                     erreur = FALSE))}
 }
 # E = EM_Langevin(increments_dta, Lambda, Vc(0.4,0.4), G = 10)
 # E
