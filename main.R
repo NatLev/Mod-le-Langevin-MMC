@@ -40,7 +40,7 @@ p1
 # parameters simu ---------------------------------------------------------
 
 
-nbr_obs = 1000      
+nbr_obs = 4000      
 K = 2       
 J = 2        
 dimension = 2  
@@ -132,13 +132,15 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 5
+N = 100
 liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
 
 Resultats = data.frame(col_inutile = 1:N)
-  
+Resultats_A = data.frame(col_inutile = 1:N)
+Resultats_Nu = data.frame(col_inutile = 1:N)
+
 for (i in 1:length(liste_theta)){
   theta = liste_theta[[i]]
   Viterbi_EM = numeric(N)
@@ -185,18 +187,45 @@ for (i in 1:length(liste_theta)){
     
     Viterbi_EM[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V)/(nbr_obs-1)
     Viterbi_Flexmix[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V_flexmix)/(nbr_obs-1)
+    
+    liste_norm_A_EM[compteur] = norm(A - E$A)
+    liste_norm_A_Flexmix[compteur] = norm(A - Relab$A)
+    liste_norm_nu_EM[compteur] = norm(theta - AffParams(E$param)$nu)
+    liste_norm_nu_Flexmix[compteur] = norm(theta - AffParams(Relab$param)$nu)
+    
    
     compteur = compteur + 1
   }
+  # Test de Viterbi.
   Resultats[paste0('Nu',i,' EM')] = Viterbi_EM  
   Resultats[paste0('Nu',i,' Flexmix')] = Viterbi_Flexmix  
+  
+  # Test des normes.
+  # A.
+  Resultats_A[paste0('A EM Nu',i)] = liste_norm_A_EM
+  Resultats_A[paste0('A Flexmix Nu',i)] = liste_norm_A_Flexmix
+  
+  # Nu.
+  Resultats_Nu[paste0('Nu EM Nu',i)] = liste_norm_nu_EM
+  Resultats_Nu[paste0('Nu Flexmix Nu',i)] = liste_norm_nu_Flexmix
+  
 }
 boxplot(Resultats[,-1], 
         col = c('orange','orange','red','red','pink','pink'),
-        main = "Test de Viterbi pour l'EM et Flexmix \n 1000 observations, 100 répétitions, 3 nus, \n 20 iterations de l'EM"
+        main = "Test de Viterbi pour l'EM et Flexmix \n 2000 observations, 100 répétitions, 3 nus, \n 20 iterations de l'EM"
         
         )
+boxplot(Resultats_A[-1],
+        main = "Test sur la prédiction des matrices de transitions \n 
+        2000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        col = c('red','red','orange','orange','yellow','yellow'),
+        ylab = 'Erreurs')
 
+boxplot(Resultats_Nu[-1],
+        main = "Test sur la prédiction des Nu \n 
+        2000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        col = c('red','red','orange','orange','yellow','yellow'),
+        ylab = 'Erreurs')
 
 ################################################################################
 #
@@ -283,20 +312,20 @@ for (i in 1:length(liste_theta)){
 
 boxplot(Resultats_A[-1],
         main = "Test sur la prédiction des matrices de transitions \n 
-        1000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        2000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
         col = c('red','red','orange','orange','yellow','yellow'),
         ylab = 'Erreurs')
 
 boxplot(Resultats_Nu[-1],
         main = "Test sur la prédiction des Nu \n 
-        1000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
+        2000 obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1",
         col = c('red','red','orange','orange','yellow','yellow'),
         ylab = 'Erreurs')
 
 
 
 
-Resultats = data.frame(col_inutile = 1:N)
+wResultats = data.frame(col_inutile = 1:N)
 
 N = 100 
 compteur = 0 
