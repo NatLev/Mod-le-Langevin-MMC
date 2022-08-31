@@ -90,7 +90,7 @@ b = matrix_to_list(Nu(BETA(2,2),0.4))
 #         - Seules les dimensions 1 et 2 sont prises en compte ici.
 
 
-proba_emission = function(obs, C, theta, Delta, Vits, dimension = 2){
+proba_emission_RR = function(obs, C, theta, Delta, Vits, dimension = 2){
 
   nbr_obs = length(obs$Z1) - 1  # On enleve 1 pour ne pas prendre le NA.
   K = dim(theta)[2]
@@ -352,18 +352,18 @@ Generation = function(nbr_obs, pdt, A, liste_cov, nu, Affichage = FALSE){
   message(paste0('Il y a eu ',compteur,' erreurs.'))
   
   
-  increments_dta <- Obs %>% 
-    mutate(etats_caches = lag(etats_caches)) %>% 
-    mutate(delta_t = t- lag(t)) %>% 
-    mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
-    mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
-    rename(dep_x = Z1, dep_y = Z2) %>% 
-    dplyr::select(-x, -y) %>% 
-    na.omit() %>%  
-    pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
-    arrange(dimension) %>% 
+  increments_dta <- Obs %>%
+    mutate(etats_caches = lag(etats_caches)) %>%
+    mutate(delta_t = t- lag(t)) %>%
+    mutate_at(vars(matches("grad")), ~lag(.x))  %>%
+    mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>%
+    rename(dep_x = Z1, dep_y = Z2) %>%
+    dplyr::select(-x, -y) %>%
+    na.omit() %>%
+    pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>%
+    arrange(dimension) %>%
     create_covariate_columns()
-  
+
   if (Affichage) {
     p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
       coord_equal() + scale_fill_viridis(name = "Value") + facet_wrap(level~.) +

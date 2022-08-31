@@ -132,7 +132,7 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 100
+N = 10
 liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
@@ -241,7 +241,7 @@ nbr_obs = 1000
 K = 2       
 J = 2        
 dimension = 2  
-vit = 1 
+vit = 1.2 
 pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),
@@ -250,12 +250,13 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 10
-# liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
-#                    Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
-#                    Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
+N = 75
+liste_theta = list(Nu(matrix(c(5, -5, 2, -0.9)/vit**2, ncol = K, nrow = J), vit), 
+                   Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit),
+                   Nu(matrix(c(5, -5, -1.2, 0.6)/vit**2, ncol = K, nrow = J), vit))
+                   
 
-liste_theta = list(Nu(matrix(c(5,-5,5,5),ncol =K, nrow = J),vit))
+# liste_theta = list(Nu(matrix(c(5,-5,2,-0.5),ncol =K, nrow = J),vit))
 Resultats = data.frame(col_inutile = 1:N)
 Resultats_A = data.frame(col_inutile = 1:N)
 Resultats_Nu = data.frame(col_inutile = 1:N)
@@ -276,16 +277,16 @@ for (i in 1:length(liste_theta)){
     print(paste0('Tour ',compteur+1, ' pour Nu',i))
     Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
     
-    increments_dta <- Obs %>% 
-      mutate(etats_caches = lag(etats_caches)) %>% 
-      mutate(delta_t = t- lag(t)) %>% 
-      mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
-      mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
-      rename(dep_x = Z1, dep_y = Z2) %>% 
-      dplyr::select(-x, -y) %>% 
-      na.omit() %>%  
-      pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
-      arrange(dimension) %>% 
+    increments_dta <- Obs %>%
+      mutate(etats_caches = lag(etats_caches)) %>%
+      mutate(delta_t = t- lag(t)) %>%
+      mutate_at(vars(matches("grad")), ~lag(.x))  %>%
+      mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>%
+      rename(dep_x = Z1, dep_y = Z2) %>%
+      dplyr::select(-x, -y) %>%
+      na.omit() %>%
+      pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>%
+      arrange(dimension) %>%
       create_covariate_columns()
     
     m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
@@ -336,22 +337,33 @@ for (i in 1:length(liste_theta)){
   Resultats_Nu[paste0('Nu Flexmix Nu',i)] = liste_norm_nu_Flexmix
   
 }
-boxplot(Resultats[,-1], 
-        col = c('orange','orange','red','red','pink','pink'),
-        main = paste0("Test de Viterbi pour l'EM et Flexmix \n ",nbr_obs," observations, ",N," répétitions, 3 nus, \n 20 iterations de l'EM")
+# Je ne prends pas les résultats dans l'ordre car les thetas ne le sont pas.
+boxplot(Resultats[,c(4,5,6,7,2,3)]*100, 
+        col = c('red','orange','red','orange','red','orange'),
+        main = paste0("Test de Viterbi (",nbr_obs," observations, ",N,
+                      " répétitions)\n vitesses = (",vit,', ',vit,")"),
+        at=c(1,2,4,5,7,8),
+        names = c("Em Nu1",'Fl Nu1',"Em Nu2",'Fl Nu2',"Em Nu3",'Fl Nu3'),
+        ylab = '% de réussite',
+        outline = FALSE)
         
-)
-boxplot(Resultats_A[-1],
-        main = paste0("Test sur la prédiction des matrices de transitions \n 
-        ",nbr_obs," obs, ",N, " gen, 20 tours d'EM trois Nu, pdt = 0.1"),
-        col = c('red','red','orange','orange','yellow','yellow'),
-        ylab = 'Erreurs')
+boxplot(Resultats_A[,c(4,5,6,7,2,3)],
+        main = paste0("Test sur la prédiction de la matrice de transition (",nbr_obs,
+                      " obs, ",N," gen)\n vitesses = (",vit,', ',vit,")"),
+        col = c('red','orange','red','orange','red','orange'),
+        at=c(1,2,4,5,7,8),
+        names = c("Em Nu1",'Fl Nu1',"Em Nu2",'Fl Nu2',"Em Nu3",'Fl Nu3'),
+        ylab = 'Erreurs',
+        outline = FALSE)
 
-boxplot(Resultats_Nu[-1],
-        main = paste0("Test sur la prédiction des Nu \n 
-        ",nbr_obs," obs, 100 gen, 20 tours d'EM trois Nu, pdt = 0.1"),
-        col = c('red','red','orange','orange','yellow','yellow'),
-        ylab = 'Erreurs')
+boxplot(Resultats_Nu[,c(4,5,6,7,2,3)],
+        main = paste0("Test sur la prédiction des Nu (",nbr_obs," obs, ",N
+                      ," gen) \n vitesses = (",vit,', ',vit,")"),
+        col = c('red','orange','red','orange','red','orange'),
+        at=c(1,2,4,5,7,8),
+        names = c("Em Nu1",'Fl Nu1',"Em Nu2",'Fl Nu2',"Em Nu3",'Fl Nu3'),
+        ylab = 'Erreurs', 
+        outline = FALSE)
 
 
 
