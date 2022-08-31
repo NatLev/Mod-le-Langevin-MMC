@@ -251,7 +251,7 @@ A = matrix(c(0.95,0.05,0.1,0.9),
 
 
 N = 75
-liste_theta = list(Nu(matrix(c(5, -5, 2, -0.9)/vit**2, ncol = K, nrow = J), vit), 
+liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit), 
                    Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit),
                    Nu(matrix(c(5, -5, -1.2, 0.6)/vit**2, ncol = K, nrow = J), vit))
                    
