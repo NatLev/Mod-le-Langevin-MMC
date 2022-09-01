@@ -33,7 +33,6 @@ cov_df <- do.call(rbind.data.frame,
 p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
   coord_equal() + scale_fill_viridis(name = "Value") + facet_wrap(level~.) +
   ggopts
-p1
 
 
 
@@ -68,58 +67,6 @@ resol <- 0.1 # grid resolution
 rho <- 2; nu <- 1.5; sigma2 <- 30# Matern covariance parameters
 mean_function <- function(z){# mean function
   -log(3 + sum(z^2))}
-
-
-
-
-# Creation de la liste des covariables via Rhabit.
-
-
-
-# Creation de la suite des etats caches.
-
-# A = matrix(c(.85,.05,.1,.03,.91,.06,.03,.07,.9),
-#            ncol = K,
-#            nrow = K,
-#            byrow = TRUE)
-A = matrix(c(0.95,0.05,0.1,0.9),
-           ncol = K,
-           nrow = K,
-           byrow = TRUE)
-
-etats_caches = CM_generateur( A, nbr_obs)
-
-# Le parametre de lien. 
-
-
-
-
-# increments_dta %>% pivot_longer( matches("cov"),  names_to = "covariate", values_to = "grad") %>% ggplot() + 
-#   geom_point(aes(x=grad, y=deplacement, col = as.factor(etats_caches))) +
-#   facet_wrap(~covariate) + ggtitle("covariate")
-
-# preparation du jeu de données incréments
-
-# Generation(nbr_obs, pdt, A, liste_cov, theta)
-
-
-
-
-B = proba_emission(increments = increments_dta, param = E$param)
-V = Viterbi(E$A, B, E$PI)
-V_flexmix = Viterbi(Relab$A, proba_emission(increments_dta, Relab$param), Relab$PI)
-
-print("Réussite de Viterbi pour l'EM")
-sum(Obs$etats_caches[1:(nbr_obs-1)] == V)/(nbr_obs-1)
-print("Réussite de Viterbi pour Flexmix")
-sum(Obs$etats_caches[1:(nbr_obs-1)] == V_flexmix)/(nbr_obs-1)
-
-rel = relabel(A_init, param_init, PI_init)
-rel$A; AffParams(rel$params)
-E$A; AffParams(E$param)
-
-
-
 
 ################################################################################
 #
@@ -243,7 +190,7 @@ nbr_obs = 1000
 K = 2       
 J = 2        
 dimension = 2  
-vit = 1.5 
+vit = 2
 pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),
@@ -252,7 +199,7 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 200
+N = 500
 liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit), 
                    Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit),
                    Nu(matrix(c(5, -5, -1.2, 0.6)/vit**2, ncol = K, nrow = J), vit))
@@ -301,11 +248,17 @@ for (i in 1:length(liste_theta)){
       
       if (class(m1) != "try-error"){condition_boucle = FALSE}else{n_err = n_err + 1}
     }
-    print(paste0(n_err,' erreurs Flexmix'))
+    print(paste0(n_err,' erreur(s) Flexmix'))
     table(m1@cluster, increments_dta$etats_caches)
     parameters(m1)
     
     Init = initialisation2.0(increments = increments_dta, K = 2)
+    
+    while(dim(Init$A)[1] == 1){
+      print("Probleme de dim dans A_init")
+      Init = initialisation2.0(increments = increments_dta, K = 2)
+      }
+    
     A_init = Init$A[,c(2,3)]; param_init = Init$param; PI_init = Init$PI
     
     Relab = relabel(A_init, param_init, PI_init)
@@ -351,7 +304,7 @@ for (i in 1:length(liste_theta)){
 
 # Je ne prends pas les résultats dans l'ordre car les thetas ne le sont pas.
 boxplot(Resultats[,c(4,5,6,7,2,3)]*100, 
-        col = c('red','orange','red','orange','red','orange'),
+        col = c('pink','yellow','pink','yellow','pink','yellow'),
         main = paste0("Test de Viterbi (",nbr_obs," observations, ",N,
                       " répétitions)\n vitesses = (",vit,', ',vit,")"),
         at=c(1,2,4,5,7,8),
