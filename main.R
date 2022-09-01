@@ -141,6 +141,7 @@ Resultats = data.frame(col_inutile = 1:N)
 Resultats_A = data.frame(col_inutile = 1:N)
 Resultats_Nu = data.frame(col_inutile = 1:N)
 
+# Version avec bug Flexmix.
 for (i in 1:length(liste_theta)){
   theta = liste_theta[[i]]
   Viterbi_EM = numeric(N)
@@ -215,6 +216,7 @@ for (i in 1:length(liste_theta)){
   Resultats_Nu[paste0('Nu Flexmix Nu',i)] = liste_norm_nu_Flexmix
   
 }
+
 boxplot(Resultats[,-1], 
         col = c('orange','orange','red','red','pink','pink'),
         main = "Test de Viterbi pour l'EM et Flexmix \n 2000 observations, 100 répétitions, 3 nus, \n 20 iterations de l'EM"
@@ -241,7 +243,7 @@ nbr_obs = 1000
 K = 2       
 J = 2        
 dimension = 2  
-vit = 1.2 
+vit = 1.5 
 pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),
@@ -250,7 +252,7 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 75
+N = 200
 liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit), 
                    Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit),
                    Nu(matrix(c(5, -5, -1.2, 0.6)/vit**2, ncol = K, nrow = J), vit))
@@ -262,6 +264,7 @@ Resultats_A = data.frame(col_inutile = 1:N)
 Resultats_Nu = data.frame(col_inutile = 1:N)
 nbr_erreurs = 0
 
+# Version sans bug (j espere).
 for (i in 1:length(liste_theta)){
   theta = liste_theta[[i]]
   Viterbi_EM = numeric(N)
@@ -275,21 +278,30 @@ for (i in 1:length(liste_theta)){
   compteur = 0
   while (compteur < N) {
     print(paste0('Tour ',compteur+1, ' pour Nu',i))
-    Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
     
-    increments_dta <- Obs %>%
-      mutate(etats_caches = lag(etats_caches)) %>%
-      mutate(delta_t = t- lag(t)) %>%
-      mutate_at(vars(matches("grad")), ~lag(.x))  %>%
-      mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>%
-      rename(dep_x = Z1, dep_y = Z2) %>%
-      dplyr::select(-x, -y) %>%
-      na.omit() %>%
-      pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>%
-      arrange(dimension) %>%
-      create_covariate_columns()
-    
-    m1 <- flexmix(deplacement ~ -1 + cov.1 + cov.2, k= 2, data= increments_dta)
+    condition_boucle = TRUE
+    n_err = 0
+    while (condition_boucle){
+      Obs = Generation(nbr_obs, pdt, A, liste_cov, theta)$Obs
+      
+      increments_dta <- Obs %>% 
+        mutate(etats_caches = lag(etats_caches)) %>% 
+        mutate(delta_t = t- lag(t)) %>% 
+        mutate_at(vars(matches("grad")), ~lag(.x))  %>% 
+        mutate_at(vars(matches("Z")), ~ .x/sqrt(delta_t)) %>% 
+        rename(dep_x = Z1, dep_y = Z2) %>% 
+        dplyr::select(-x, -y) %>% 
+        na.omit() %>%  
+        pivot_longer(matches("dep"), names_to = "dimension", values_to = "deplacement") %>% 
+        arrange(dimension) %>% 
+        create_covariate_columns()
+      
+      m1 = try(flexmix(deplacement ~ -1 + cov.1 + cov.2, k = 2, data = increments_dta), 
+               silent = TRUE)
+      
+      if (class(m1) != "try-error"){condition_boucle = FALSE}else{n_err = n_err + 1}
+    }
+    print(paste0(n_err,' erreurs Flexmix'))
     table(m1@cluster, increments_dta$etats_caches)
     parameters(m1)
     
@@ -321,7 +333,7 @@ for (i in 1:length(liste_theta)){
       liste_norm_nu_EM[compteur] = norm(theta - AffParams(E$param)$nu)
       liste_norm_nu_Flexmix[compteur] = norm(theta - AffParams(Relab$param)$nu)
       compteur = compteur + 1
-      }else{nbr_erreurs = nbr_erreurs + 1}
+    }else{nbr_erreurs = nbr_erreurs + 1}
   }
   # Test de Viterbi.
   Resultats[paste0('Nu',i,' EM')] = Viterbi_EM  
@@ -335,8 +347,8 @@ for (i in 1:length(liste_theta)){
   # Nu.
   Resultats_Nu[paste0('Nu EM Nu',i)] = liste_norm_nu_EM
   Resultats_Nu[paste0('Nu Flexmix Nu',i)] = liste_norm_nu_Flexmix
-  
 }
+
 # Je ne prends pas les résultats dans l'ordre car les thetas ne le sont pas.
 boxplot(Resultats[,c(4,5,6,7,2,3)]*100, 
         col = c('red','orange','red','orange','red','orange'),
