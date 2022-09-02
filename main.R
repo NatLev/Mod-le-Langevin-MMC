@@ -190,7 +190,7 @@ nbr_obs = 1000
 K = 2       
 J = 2        
 dimension = 2  
-vit = 2
+vit = 0.5
 pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),
@@ -335,7 +335,7 @@ boxplot(Resultats_Nu[,c(4,5,6,7,2,3)],
 
 
 ################################################################################
-wResultats = data.frame(col_inutile = 1:N)
+Resultats = data.frame(col_inutile = 1:N)
 
 N = 100 
 compteur = 0 
