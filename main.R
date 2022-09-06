@@ -33,7 +33,7 @@ cov_df <- do.call(rbind.data.frame,
 p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
   coord_equal() + scale_fill_viridis(name = "Value") + facet_wrap(level~.) +
   ggopts
-
+p1
 
 
 # parameters simu ---------------------------------------------------------
@@ -190,7 +190,7 @@ nbr_obs = 1000
 K = 2       
 J = 2        
 dimension = 2  
-vit = 0.5
+vit =2 
 pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),
@@ -199,11 +199,12 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 500
-liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit), 
-                   Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit),
-                   Nu(matrix(c(5, -5, -1.2, 0.6)/vit**2, ncol = K, nrow = J), vit))
-                   
+N = 10
+# liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit), 
+#                    Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit),
+#                    Nu(matrix(c(5, -5, -1.2, 0.6)/vit**2, ncol = K, nrow = J), vit))
+liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit))
+
 
 # liste_theta = list(Nu(matrix(c(5,-5,2,-0.5),ncol =K, nrow = J),vit))
 Resultats = data.frame(col_inutile = 1:N)
@@ -278,6 +279,7 @@ for (i in 1:length(liste_theta)){
       V = Viterbi(E$A, B, E$PI)
       V_flexmix = Viterbi(Relab$A, proba_emission(increments_dta, Relab$param), Relab$PI)
       
+      print(AffParams(E$param))
       Viterbi_EM[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V)/(nbr_obs-1)
       Viterbi_Flexmix[compteur+1] = sum(Obs$etats_caches[1:(nbr_obs-1)]==V_flexmix)/(nbr_obs-1)
       
