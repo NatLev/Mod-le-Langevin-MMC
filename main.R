@@ -190,7 +190,7 @@ nbr_obs = 1000
 K = 2       
 J = 2        
 dimension = 2  
-vit =2 
+vit = 0.5 
 pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),

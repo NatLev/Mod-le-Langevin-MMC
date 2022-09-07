@@ -94,7 +94,9 @@ retourner = function(liste){
 }
 
 ret = function(nu){return(cbind(nu[,2], nu[,1]))}
+
 norme = function(mat){return(tr(mat %*% aperm(mat)))}
+
 AffParams = function(param){
   K = length(param)
   J = length(param[[1]]$nu)

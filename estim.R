@@ -429,9 +429,6 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
       return(list(erreur = TRUE))
     }
     
-    # print(A)
-    # print(nu_nv)
-    # print(vit_nv)
     # On met à jour le compteur.
     compteur = compteur + 1
    } 
@@ -446,13 +443,5 @@ EM_Langevin = function(increments, Lambda, G = 10, moyenne = FALSE){
                                                                      param = Params,
                                                                      erreur = FALSE))}
 }
-# E = EM_Langevin(increments_dta, Lambda, Vc(0.4,0.4), G = 10)
-# E
-# 
-# 
-
-# Q_test = etats_forts(Lambda$B)
-# etats_caches == Q_test
-# 
 
 
