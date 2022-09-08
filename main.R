@@ -33,7 +33,7 @@ cov_df <- do.call(rbind.data.frame,
 p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
   coord_equal() + scale_fill_viridis(name = "Value") + facet_wrap(level~.) +
   ggopts
-p1
+p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
 
 
 # parameters simu ---------------------------------------------------------
@@ -79,7 +79,7 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 10
+N = 1
 liste_theta = list(Nu(matrix(c(5, -5, -5, 5), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -3, 3), ncol = K, nrow = J), vit),
                Nu(matrix(c(5, -5, -1, 1), ncol = K, nrow = J), vit))
@@ -186,11 +186,11 @@ boxplot(Resultats_Nu[-1],
 #                              Tests version non biaisee
 #
 ################################################################################
-nbr_obs = 1000      
+nbr_obs = 100      
 K = 2       
 J = 2        
 dimension = 2  
-vit = 0.5 
+vit = 2 
 pdt = 0.1     
 
 A = matrix(c(0.95,0.05,0.1,0.9),
@@ -199,11 +199,11 @@ A = matrix(c(0.95,0.05,0.1,0.9),
            byrow = TRUE)
 
 
-N = 10
+N = 1
 # liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit), 
 #                    Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit),
 #                    Nu(matrix(c(5, -5, -1.2, 0.6)/vit**2, ncol = K, nrow = J), vit))
-liste_theta = list(Nu(matrix(c(5, -5, 1, -.9)/vit**2, ncol = K, nrow = J), vit))
+liste_theta = list(Nu(matrix(c(5, -5, -5, 5)/vit**2, ncol = K, nrow = J), vit))
 
 
 # liste_theta = list(Nu(matrix(c(5,-5,2,-0.5),ncol =K, nrow = J),vit))
@@ -303,6 +303,13 @@ for (i in 1:length(liste_theta)){
   Resultats_Nu[paste0('Nu EM Nu',i)] = liste_norm_nu_EM
   Resultats_Nu[paste0('Nu Flexmix Nu',i)] = liste_norm_nu_Flexmix
 }
+
+p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
+  coord_equal() + scale_fill_viridis(name = "Valeurs des covariables") + facet_wrap(level~.) +
+  ggopts
+p1 +  geom_path(data = Obs, aes(x,y)) + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) + 
+                                                   labs(color = 'Etats caches') +
+  ggtitle("Déplacement de l'animal sur les cartes des covariables") 
 
 # Je ne prends pas les résultats dans l'ordre car les thetas ne le sont pas.
 boxplot(Resultats[,c(4,5,6,7,2,3)]*100, 
