@@ -30,10 +30,12 @@ cov_df <- do.call(rbind.data.frame,
                          }))
 
 
-p1 <- ggplot(cov_df, aes(x,y)) + geom_raster(aes(fill = val)) +
-  coord_equal() + scale_fill_viridis(name = "Value") + facet_wrap(level~.) +
+p1 <- cov_df %>%  filter(level== "Covariate 1") %>%  ggplot( aes(x,y)) + geom_raster(aes(fill = val)) +
+  coord_equal() + scale_fill_viridis(name = "Covariate")  +
   ggopts
-p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) 
+p1 + geom_point(data=Obs, aes(x=x, y=y, col = as.factor(etats_caches))) + geom_path(data = Obs, aes(x=x, y=y), alpha = 0.3) +
+  labs(col='Etats internes') + scale_color_manual(values = c("#BB0560", "#F7AD05"))
+
 
 
 # parameters simu ---------------------------------------------------------
